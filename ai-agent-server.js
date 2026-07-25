@@ -32,52 +32,43 @@ REGLAS DE ORO DE CONVERSACIÓN (ESTRICTAS):
    "¡Con gusto! Te conecto directamente con Nico y el equipo en el local para asesorarte. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
-// Respuestas Breves y Contextuales
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase() : "";
 
-  // Si pide MÁS INFORMACIÓN o consulta general
   if (msg.includes("info") || msg.includes("informacion") || msg.includes("asesor") || msg.includes("consulta") || msg.includes("detalles") || msg.includes("mas info")) {
     return "¡Hola! 😊 Con mucho gusto te asesoro.\n\n" +
       "Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?";
   }
 
-  // Si solicita AGENDARSE / TEST VISUAL
   if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("medir") || msg.includes("vista")) {
     return "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso. 🩺\n\n" +
       "¿Qué día y horario te queda más cómodo esta semana para reservarte el turno?";
   }
 
-  // Si pregunta por MARCAS
   if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
     return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 y marcas internacionales).\n\n" +
       "¿Buscas alguna marca o modelo en particular así te confirmo si la tenemos disponible?";
   }
 
-  // Si pregunta por CONVENIOS
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
       "¿A qué convenio, mutualista o sindicato perteneces tú así te paso el descuento exacto?";
   }
 
-  // Si pregunta por MULTIFOCALES / CRISTALES / PRECIOS
   if (msg.includes("multifocal") || msg.includes("cristal") || msg.includes("demora") || msg.includes("tiempo") || msg.includes("garantia") || msg.includes("precio") || msg.includes("cuota") || msg.includes("tarjeta") || msg.includes("lente")) {
     return "Nuestros multifocales digitales demoran solo 5 días hábiles y cuentan con 60 días de garantía de adaptación. 👓\n\n" +
       "Además, aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo. ¿Te gustaría coordinar una visita al local?";
   }
 
-  // Si pregunta por HORARIOS O DIRECCIÓN
   if (msg.includes("horario") || msg.includes("donde") || msg.includes("direccion") || msg.includes("abierto") || msg.includes("ubicacion") || msg.includes("millan") || msg.includes("como llego")) {
     return "Estamos ubicados en **Av. Millán 4494** (Montevideo). 📍\n\n" +
       "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
-  // Si pide hablar con Nico o atención humana
   if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // Saludo por defecto
   return "¡Hola! 😊 Con mucho gusto te asesoro. Para ayudarte mejor: ¿ya tienes tu receta médica o necesitas coordinar un chequeo visual gratis en el local de Av. Millán 4494?";
 }
 
@@ -114,7 +105,6 @@ async function generateAIResponse(userMessage) {
   return getSmartResponse(userMessage);
 }
 
-// Mover automáticamente la tarjeta en el Pipeline de GHL a la etapa 'Agenda'
 async function moveOpportunityToAgenda(contactId) {
   try {
     const headers = {
@@ -143,7 +133,6 @@ async function moveOpportunityToAgenda(contactId) {
   }
 }
 
-// Verificar si el contacto tiene etiqueta de atención humana
 async function isIAHandledByHuman(contactId) {
   try {
     const res = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, {
@@ -193,7 +182,7 @@ async function ensureOpportunityAndAssignToNico(contactId, contactName) {
       body: JSON.stringify({
         pipelineId: PIPELINE_ID,
         locationId: GHL_LOCATION_ID,
-        name: contactName || "Lead WhatsApp",
+        name: contactName || "Lead",
         pipelineStageId: STAGE_NUEVO_LEAD,
         status: "open",
         contactId: contactId,
@@ -211,6 +200,16 @@ async function handleWebhook(req, res) {
   const contactId = req.body.contact_id || req.body.contactId || req.body.contact?.id || req.body.id;
   const direction = req.body.direction || req.body.type || "";
   const userId = req.body.userId || req.body.user_id;
+
+  // Detección dinámica del canal (WhatsApp vs Instagram vs Facebook)
+  let channelType = 'WhatsApp';
+  const rawChannel = (req.body.channel || req.body.message_type || req.body.type || req.body.provider || "").toLowerCase();
+  
+  if (rawChannel.includes("instagram") || rawChannel.includes("ig")) {
+    channelType = 'Instagram';
+  } else if (rawChannel.includes("fb") || rawChannel.includes("facebook") || rawChannel.includes("messenger")) {
+    channelType = 'FB';
+  }
 
   if (direction === 'outbound' || direction === 'outbound-api' || direction === 'Outbound' || userId) {
     console.log(`👤 Mensaje del equipo (Staff) detectado. Pausando IA para el contacto ${contactId}...`);
@@ -246,13 +245,13 @@ async function handleWebhook(req, res) {
 
   if (aiReply.includes("[SOLICITA_HUMANO]")) {
     const cleanReply = aiReply.replace("[SOLICITA_HUMANO]", "").trim();
-    await sendGHLMessage(contactId, cleanReply);
+    await sendGHLMessage(contactId, cleanReply, channelType);
     await addTagToContact(contactId, "Atencion_Humana");
     return res.json({ status: "handoff_to_human", reply: cleanReply });
   }
 
-  await sendGHLMessage(contactId, aiReply);
-  res.json({ status: "success", reply: aiReply });
+  await sendGHLMessage(contactId, aiReply, channelType);
+  res.json({ status: "success", channel: channelType, reply: aiReply });
 }
 
 app.post('/webhook/ghl-message', handleWebhook);
@@ -262,9 +261,10 @@ app.get('/', (req, res) => {
   res.send("🚀 Servidor de Agente IA Óptica Círculo Visión activo 24/7.");
 });
 
-async function sendGHLMessage(contactId, messageText) {
+async function sendGHLMessage(contactId, messageText, channelType = 'WhatsApp') {
+  console.log(`📤 Enviando respuesta por el canal [${channelType}] a ${contactId}...`);
   try {
-    await fetch('https://services.leadconnectorhq.com/conversations/messages', {
+    const res = await fetch('https://services.leadconnectorhq.com/conversations/messages', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${GHL_TOKEN}`,
@@ -272,11 +272,17 @@ async function sendGHLMessage(contactId, messageText) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        type: 'WhatsApp',
+        type: channelType, // 'WhatsApp' | 'Instagram' | 'FB'
         contactId: contactId,
         message: messageText
       })
     });
+    if (res.ok) {
+      console.log(`✅ Mensaje enviado exitosamente por [${channelType}] a ${contactId}`);
+    } else {
+      const err = await res.text();
+      console.error(`❌ Error respuesta GHL API (${res.status}):`, err);
+    }
   } catch (e) {
     console.error("Error enviando GHL message:", e.message);
   }
