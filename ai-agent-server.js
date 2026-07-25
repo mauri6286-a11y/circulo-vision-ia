@@ -116,11 +116,14 @@ async function isIAHandledByHuman(contactId) {
     const data = await res.json();
     const tags = data.contact?.tags || [];
 
-    const humanTags = ['Atencion_Humana', 'Hablar_con_Humano', 'IA_Pausada', 'Atendido_por_Staff'];
-    const isPaused = tags.some(t => humanTags.includes(t));
+    // Verificación insensible a mayúsculas/minúsculas/acentos
+    const isPaused = tags.some(t => {
+      const lower = t.toLowerCase();
+      return lower.includes("humano") || lower.includes("atencion_humana") || lower.includes("pausad") || lower.includes("staff");
+    });
 
     if (isPaused) {
-      console.log(`⏸️ IA Pausada para ${contactId} (Etiquetas: ${tags.join(', ')})`);
+      console.log(`⏸️ IA Pausada para ${contactId} (Etiquetas activas: ${tags.join(', ')})`);
     }
     return isPaused;
   } catch (e) {
