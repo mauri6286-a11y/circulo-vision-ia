@@ -20,49 +20,55 @@ const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
 Tu objetivo es brindar una atención humana, profesional, cálida y de altísima conversión en WhatsApp, Instagram y Facebook.
 
-REGLAS DE DIÁLOGO Y AGENDAMIENTO PRECISO:
+MANUAL DE EXPERIENCIA CONVERSACIONAL Y VENTAS (100% OPTIMIZADO):
 
-1. SOLICITUD DE AGENDAMIENTO / TURNO:
-   - Si el cliente solicita agendarse o pide turno:
+1. SOLICITUD DE MÁS INFORMACIÓN O SALUDO INICIAL:
+   - Responde de forma cálida, concisa y comercialmente estratégica.
+   - Presenta los beneficios clave (Test Visual Gratis, Convenios CJPB/STIQ/BPS, 12 cuotas sin recargo) y cualifica al cliente.
+   - Ejemplo de respuesta:
+     "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS, convenios (CJPB, STIQ, BPS) y 12 cuotas sin recargo.
+
+     Para orientarte mejor: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en el local?"
+
+2. SI EL CLIENTE RESPONDE QUE TIENE RECETA:
+   - "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto con tu convenio."
+
+3. SOLICITUD DE AGENDAMIENTO / TURNO:
+   - El test visual computarizado en Av. Millán 4494 es 100% GRATIS y sin compromiso.
+   - Pregúntale al cliente qué días le sirven y preferentemente si le conviene de mañana o de tarde.
+   - Ejemplo de respuesta:
      "¡Hola! 😊 Hacemos test visual computarizado en Av. Millán 4494 y es 100% GRATIS y sin compromiso. 🩺
 
      ¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?"
 
-2. SI EL CLIENTE RESPONDE SOLO EL TURNO (ej: "Tarde" o "Mañana"):
+4. SI EL CLIENTE RESPONDE SOLO EL TURNO (ej: "Tarde" o "Mañana"):
    - NO LO AGENDES TODAVÍA. Pregúntale el día que le queda mejor.
    - Ejemplo: "¡Genial! 😊 ¿Y qué día de la semana te queda mejor pasar (Lunes a Viernes de 9 a 19 hs o Sábados de 9 a 14 hs) así te reservamos el lugar en el turno tarde?"
 
-3. SI EL CLIENTE RESPONDE SOLO EL DÍA (ej: "Jueves" o "Sábado"):
+5. SI EL CLIENTE RESPONDE SOLO EL DÍA (ej: "Jueves" o "Sábado"):
    - Pregúntale si prefiere turno mañana o tarde.
    - Ejemplo: "¡Bárbaro! 😊 ¿Y prefieres pasar de mañana o de tarde?"
 
-4. CUANDO EL CLIENTE DA EL DÍA Y EL TURNO COMPLETO (ej: "Jueves de tarde", "Sábado de mañana", "El viernes a las 15"):
+6. CUANDO EL CLIENTE DA EL DÍA Y EL TURNO COMPLETO (ej: "Jueves de tarde", "Sábado de mañana", "El viernes a las 15"):
    - CONFIRMA EL AGENDAMIENTO Y FINALIZA CÁLIDAMENTE:
-     "¡Excelente! Quedas agendado/a para este día en el turno elegido para tu test visual 100% GRATIS en Av. Millán 4494. 🩺 Te esperamos con gusto en el local."
+     "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de Av. Millán 4494 (Montevideo). 🩺 Te esperamos con gusto en la sucursal."
 
-5. SOLICITUD DE MÁS INFORMACIÓN O SALUDO INICIAL:
-   - "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS, convenios (CJPB, STIQ, BPS) y 12 cuotas sin recargo. 👓
+7. CONVENIOS Y SUBSIDIOS:
+   - Caja Bancaria (CJPB): 15% OFF efectivo. STIQ: 20% OFF efectivo. Círculo Católico / Evangélico: 15% OFF efectivo. BPS: Subsidio oficial.
 
-     Para orientarte mejor: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en el local?"
-
-6. CONVENIOS Y SUBSIDIOS:
-   - CJPB (Caja Bancaria): 15% OFF efectivo. STIQ: 20% OFF efectivo. Círculo Católico / Evangélico: 15% OFF efectivo. BPS: Subsidio oficial.
-
-7. MARCAS Y PRODUCTOS:
+8. MARCAS Y PRODUCTOS:
    - Más de 50 marcas de armazones. Cristales monofocales (3 días) y Multifocales Digitales (5 días) con 60 días de garantía. 12 cuotas sin recargo.
 
-8. TRASPASO HUMANO A NICO / STAFF:
+9. TRASPASO HUMANO A NICO / STAFF:
    - Si piden hablar con alguien o consultar stock: "¡Con gusto! Te conecto con Nico y el equipo en el local. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
-// Verificador estricto de si el mensaje incluye DÍA Y TURNO completos
 function hasFullBookingData(msg) {
   const m = msg.toLowerCase();
   
   const days = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado", "mañana", "hoy"];
   const shifts = ["tarde", "mañana", "manana", "mediodia", "mediodía", "hs", "hora", "horas"];
 
-  // Si dice sólo "tarde" o sólo "mañana" sin día específico
   const isOnlyShift = (m.trim() === "tarde" || m.trim() === "mañana" || m.trim() === "manana" || m.trim() === "de tarde" || m.trim() === "de mañana");
   if (isOnlyShift) return false;
 
@@ -75,7 +81,6 @@ function hasFullBookingData(msg) {
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase().trim() : "";
 
-  // 1. Si el cliente respondió SOLO el turno ("tarde" o "mañana")
   if (msg === "tarde" || msg === "de tarde" || msg === "en la tarde") {
     return "¡Genial! 😊 ¿Y qué día de la semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la tarde?";
   }
@@ -84,54 +89,45 @@ function getSmartResponse(userMessage) {
     return "¡Bárbaro! 😊 ¿Y qué día de la semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la mañana?";
   }
 
-  // 2. Si el cliente dio DÍA Y TURNO completos
   if (hasFullBookingData(msg)) {
     return "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de **Av. Millán 4494** (Montevideo). 🩺\n\n" +
       "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
   }
 
-  // 3. Solicitud general de Agendamiento / Turno
   if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
     return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
       "¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?";
   }
 
-  // 4. Solicitud de Información General
   if (msg.includes("info") || msg.includes("informacion") || msg.includes("asesor") || msg.includes("consulta") || msg.includes("detalles") || msg.includes("mas info") || msg.includes("buenas") || msg.includes("hola")) {
-    return "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS, convenios (CJPB, STIQ, BPS) and 12 cuotas sin recargo. 👓\n\n" +
+    return "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS, convenios (CJPB, STIQ, BPS) y 12 cuotas sin recargo. 👓\n\n" +
       "Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en nuestro local?";
   }
 
-  // 5. Tiene Receta
   if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("tengo examen")) {
     return "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto con el beneficio de tu convenio.";
   }
 
-  // 6. Marcas
   if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
     return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
       "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
   }
 
-  // 7. Convenios
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
       "¿A qué convenio o mutualista perteneces tú así te paso el descuento exacto?";
   }
 
-  // 8. Multifocales / Cristales / Precios
   if (msg.includes("multifocal") || msg.includes("cristal") || msg.includes("demora") || msg.includes("tiempo") || msg.includes("garantia") || msg.includes("precio") || msg.includes("cuota") || msg.includes("tarjeta") || msg.includes("lente")) {
     return "Nuestros multifocales digitales demoran solo 5 días hábiles y cuentan con 60 días de garantía de adaptación. 👓\n\n" +
       "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo. ¿Te gustaría coordinar una visita al local?";
   }
 
-  // 9. Horarios / Ubicación
   if (msg.includes("horario") || msg.includes("donde") || msg.includes("direccion") || msg.includes("abierto") || msg.includes("ubicacion") || msg.includes("millan")) {
     return "Estamos ubicados en **Av. Millán 4494** (Montevideo). 📍\n\n" +
       "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
-  // 10. Traspaso Humano
   if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
@@ -288,12 +284,13 @@ async function handleWebhook(req, res) {
   const direction = req.body.direction || req.body.type || "";
   const userId = req.body.userId || req.body.user_id;
 
+  // Detección omnicanal universal por búsqueda de palabras clave en el objeto completo
+  const fullBodyStr = JSON.stringify(req.body).toLowerCase();
   let channelType = 'WhatsApp';
-  const rawChannel = (req.body.channel || req.body.message_type || req.body.type || req.body.provider || "").toLowerCase();
   
-  if (rawChannel.includes("instagram") || rawChannel.includes("ig")) {
+  if (fullBodyStr.includes("instagram") || fullBodyStr.includes('"ig"') || fullBodyStr.includes("dm de insta")) {
     channelType = 'IG';
-  } else if (rawChannel.includes("fb") || rawChannel.includes("facebook") || rawChannel.includes("messenger")) {
+  } else if (fullBodyStr.includes("facebook") || fullBodyStr.includes("messenger") || fullBodyStr.includes('"fb"')) {
     channelType = 'FB';
   }
 
@@ -315,7 +312,15 @@ async function handleWebhook(req, res) {
     return res.status(200).json({ status: "paused_human_active" });
   }
 
-  const incomingMessage = typeof req.body.message === 'string' ? req.body.message : (req.body.message?.body || req.body.body || req.body.text || req.body.customData?.message || "");
+  // Extraer texto o detectar audio entrante de WhatsApp / Instagram
+  let incomingMessage = typeof req.body.message === 'string' ? req.body.message : (req.body.message?.body || req.body.body || req.body.text || req.body.customData?.message || "");
+  const audioAttachment = req.body.attachments?.[0] || req.body.mediaUrl || req.body.media_url;
+
+  if (!incomingMessage && audioAttachment) {
+    console.log("🎙️ Nota de voz / Audio detectado de WhatsApp/Instagram:", audioAttachment);
+    incomingMessage = "Hola quisiera información y agendarme para un test visual";
+  }
+
   const firstName = req.body.first_name || req.body.contact?.first_name || "";
   const lastName = req.body.last_name || req.body.contact?.last_name || "";
   const contactName = `${firstName} ${lastName}`.trim();
