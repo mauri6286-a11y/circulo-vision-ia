@@ -207,6 +207,38 @@ async function addTagToContact(contactId, tag) {
   }
 }
 
+// Endpoint de Diagnóstico para probar la API Key de Gemini
+app.get('/test-ai', async (req, res) => {
+  const keyPresent = !!GEMINI_API_KEY;
+  const keyPrefix = GEMINI_API_KEY ? GEMINI_API_KEY.substring(0, 6) + "..." : "NINGUNA";
+
+  const models = ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
+  let results = [];
+
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Hola, qué convenios tienen?' }] }]
+        })
+      });
+      const data = await response.json();
+      results.push({ model, status: response.status, data });
+    } catch (e) {
+      results.push({ model, error: e.message });
+    }
+  }
+
+  res.json({
+    keyPresent,
+    keyPrefix,
+    results
+  });
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Agente IA Círculo Visión (Entrenado 100%) corriendo en puerto ${PORT}`);
