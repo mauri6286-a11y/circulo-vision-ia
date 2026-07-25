@@ -17,9 +17,9 @@ const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
 Tu tono es ultra natural, cálido, cercano y empático (estilo uruguayo amable y servicial).
 
-REGLAS DE INTERACCIÓN:
-1. PRIMER SALUDO: Cuando el cliente saluda por primera vez (ej: "Hola", "Buenas"), preséntate amigablemente y PREGÚNTALE EN QUÉ LO PUEDES AYUDAR.
-2. RESPONDER A LO QUE PREGUNTA EL CLIENTE:
+REGLAS DE INTERACCIÓN OBLIGATORIAS:
+1. PRIMER SALUDO: Cuando el cliente saluda por primera vez (ej: "Hola", "Buenas"), preséntate amigablemente y PREGÚNTALE EN QUÉ LO PUEDES AYUDAR. No des la lista entera de convenios de entrada.
+2. RESPONDER ÚNICAMENTE A LO QUE PREGUNTA EL CLIENTE:
    - CONVENIOS: Explica CJPB (15% efec, 10% débito, 5% crédito), STIQ (20% efec, 15% débito, 5% crédito), Círculo Católico, Evangélico, Ferrocarril Norte, Liga MVD, BPS subsidio, y Gimnasios (Salvaje, Vulcano, Fitlab, Sayago, Racing, Plaza 7).
    - MULTIFOCALES / CRISTALES: Demora ~5 días hábiles, 60 días de garantía de adaptación, test visual 100% GRATIS y 12 cuotas sin recargo.
    - HORARIOS Y DIRECCIÓN: Av. Millán 4494, Lun a Vie 9 a 19 hs, Sáb 9 a 14 hs.
@@ -27,9 +27,9 @@ REGLAS DE INTERACCIÓN:
    "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para asesorarte. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
-// Enrutador inteligente de respuestas completas
+// Enrutador inteligente adaptativo
 function getSmartResponse(userMessage) {
-  const msg = userMessage.toLowerCase();
+  const msg = userMessage ? userMessage.toLowerCase() : "";
 
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Hola! 😊 Te cuento que en Óptica Círculo Visión tenemos excelentes convenios activos:\n\n" +
@@ -95,8 +95,6 @@ async function generateAIResponse(userMessage) {
     }
   }
 
-  // Fallback Inteligente Adaptativo
-  console.log("ℹ️ Usando enrutador inteligente de respuestas para Óptica Círculo Visión.");
   return getSmartResponse(userMessage);
 }
 
@@ -132,33 +130,43 @@ async function ensureOpportunityAndAssignToNico(contactId, contactName) {
   }
 }
 
+// Webhook flexible compatible con todas las variantes de GHL
 app.post('/webhook/ghl-message', async (req, res) => {
-  const { contact_id, first_name, last_name, message, body } = req.body;
-  const incomingMessage = message || body || "";
-  const contactName = `${first_name || ''} ${last_name || ''}`.trim();
+  console.log("📥 Webhook recibido de GHL:", JSON.stringify(req.body, null, 2));
 
-  if (!contact_id || !incomingMessage) {
-    return res.status(400).json({ status: "ignored" });
+  // Extracción flexible de contactId y mensaje desde cualquier formato de GHL
+  const contactId = req.body.contact_id || req.body.contactId || req.body.contact?.id || req.body.id;
+  const incomingMessage = typeof req.body.message === 'string' ? req.body.message : (req.body.message?.body || req.body.body || req.body.text || req.body.customData?.message || "");
+  
+  const firstName = req.body.first_name || req.body.contact?.first_name || "";
+  const lastName = req.body.last_name || req.body.contact?.last_name || "";
+  const contactName = `${firstName} ${lastName}`.trim();
+
+  if (!contactId) {
+    console.warn("⚠️ Webhook ignorado: No se pudo extraer contactId del cuerpo de la petición.");
+    return res.status(200).json({ status: "ignored", reason: "Falta contactId" });
   }
 
-  await ensureOpportunityAndAssignToNico(contact_id, contactName);
+  console.log(`👤 Procesando cliente ID: ${contactId} | Mensaje: "${incomingMessage}"`);
+
+  await ensureOpportunityAndAssignToNico(contactId, contactName);
 
   const aiReply = await generateAIResponse(incomingMessage);
 
   if (aiReply.includes("[SOLICITA_HUMANO]")) {
     const cleanReply = aiReply.replace("[SOLICITA_HUMANO]", "").trim();
-    await sendGHLMessage(contact_id, cleanReply);
-    await addTagToContact(contact_id, "Atencion_Humana");
+    await sendGHLMessage(contactId, cleanReply);
+    await addTagToContact(contactId, "Atencion_Humana");
     return res.json({ status: "handoff_to_human" });
   }
 
-  await sendGHLMessage(contact_id, aiReply);
+  await sendGHLMessage(contactId, aiReply);
   res.json({ status: "success", reply: aiReply });
 });
 
 async function sendGHLMessage(contactId, messageText) {
   try {
-    await fetch('https://services.leadconnectorhq.com/conversations/messages', {
+    const res = await fetch('https://services.leadconnectorhq.com/conversations/messages', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${GHL_TOKEN}`,
@@ -171,6 +179,12 @@ async function sendGHLMessage(contactId, messageText) {
         message: messageText
       })
     });
+    if (res.ok) {
+      console.log(`✅ Mensaje enviado exitosamente por WhatsApp a ${contactId}`);
+    } else {
+      const err = await res.text();
+      console.error(`❌ Error respuesta GHL API (${res.status}):`, err);
+    }
   } catch (e) {
     console.error("Error enviando GHL message:", e.message);
   }
