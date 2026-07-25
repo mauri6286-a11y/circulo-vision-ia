@@ -77,11 +77,36 @@ async function generateAIResponse(userMessage) {
   return "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión. ¡Qué gusto saludarte! ¿En qué te podemos ayudar hoy?";
 }
 
-// Endpoint de prueba directa en el navegador
+// Endpoint de prueba directa en el navegador con Debug info
 app.get('/test-gemini', async (req, res) => {
-  const query = req.query.q || "Hola";
-  const reply = await generateAIResponse(query);
-  res.json({ query, reply, keyConfigured: !!GEMINI_API_KEY });
+  const query = req.query.q || "Tienen convenio con caja bancaria";
+  
+  let debug = [];
+  const models = ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
+
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY ? GEMINI_API_KEY.trim() : ''}`;
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: `Responde directamente: "${query}"` }] }]
+        })
+      });
+      const data = await r.json();
+      debug.push({ model, status: r.status, data });
+    } catch (e) {
+      debug.push({ model, error: e.message });
+    }
+  }
+
+  res.json({
+    query,
+    keyLength: GEMINI_API_KEY ? GEMINI_API_KEY.length : 0,
+    keyPrefix: GEMINI_API_KEY ? GEMINI_API_KEY.substring(0, 10) + '...' : 'FALTANTE',
+    debug
+  });
 });
 
 async function ensureOpportunityAndAssignToNico(contactId, contactName) {
