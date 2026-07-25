@@ -251,12 +251,12 @@ async function handleWebhook(req, res) {
   const direction = req.body.direction || req.body.type || "";
   const userId = req.body.userId || req.body.user_id;
 
-  // Detección dinámica del canal (WhatsApp, Instagram, FB Messenger)
+  // Detección dinámica del canal (WhatsApp vs Instagram ('IG') vs Facebook ('FB'))
   let channelType = 'WhatsApp';
   const rawChannel = (req.body.channel || req.body.message_type || req.body.type || req.body.provider || "").toLowerCase();
   
   if (rawChannel.includes("instagram") || rawChannel.includes("ig")) {
-    channelType = 'Instagram';
+    channelType = 'IG';
   } else if (rawChannel.includes("fb") || rawChannel.includes("facebook") || rawChannel.includes("messenger")) {
     channelType = 'FB';
   }
