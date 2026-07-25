@@ -1,0 +1,14 @@
+{
+  "name": "ghl-integration-circulo-vision",
+  "version": "1.0.0",
+  "description": "Integracion de GoHighLevel V2 para Circulo Vision",
+  "main": "ai-agent-server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node ai-agent-server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}

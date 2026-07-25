@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+
+<html class="light" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Óptica Círculo Visión | Claridad y Elegancia Visual</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "background": "#f9f9f9",
+                        "primary": "#2d3e50", // Navy Blue
+                        "secondary": "#a68a64", // Gold/Tan accent
+                        "on-surface": "#1a1c1c",
+                        "onix-black": "#121212",
+                        "optic-white": "#FFFFFF",
+                        "silver-edge": "#E5E7EB",
+                        "surface-container-low": "#f3f3f4",
+                        "outline-variant": "#c4c7c7",
+                        "on-tertiary-container": "#868381"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "4px",
+                        "lg": "4px",
+                        "xl": "8px",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "margin-desktop": "40px",
+                        "container-max-width": "1280px",
+                        "gutter": "24px",
+                        "margin-mobile": "16px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "display": ["Source Serif 4", "serif"],
+                        "body": ["Hanken Grotesk", "sans-serif"],
+                        "headline-md": ["Source Serif 4"],
+                        "display-lg": ["Source Serif 4"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-uppercase": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "display-lg-mobile": ["36px", {"lineHeight": "42px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "label-uppercase": ["12px", {"lineHeight": "16px", "letterSpacing": "0.15em", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #f9f9f9;
+            font-family: 'Hanken Grotesk', sans-serif;
+        }
+        .serif-font {
+            font-family: 'Source Serif 4', serif;
+        }
+        .btn-primary {
+            @apply bg-primary text-optic-white px-8 py-4 font-label-uppercase text-label-uppercase transition-all hover:bg-onix-black active:scale-95;
+        }
+        .btn-outline {
+            @apply border border-primary text-primary px-8 py-4 font-label-uppercase text-label-uppercase transition-all hover:bg-primary hover:text-optic-white active:scale-95;
+        }
+        .product-card-img-container {
+            position: relative;
+            overflow: hidden;
+            background-color: #f3f3f3;
+        }
+        .product-card-img-container img {
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .product-card:hover img {
+            transform: scale(1.1);
+        }
+        .section-spacing {
+            padding-top: 80px;
+            padding-bottom: 80px;
+        }
+        @media (min-width: 1024px) {
+            .section-spacing {
+                padding-top: 120px;
+                padding-bottom: 120px;
+            }
+        }
+
+        /* 3D Carousel Styles */
+        .carousel-container {
+            perspective: 1200px;
+            height: 500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .carousel-item {
+            position: absolute;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 320px;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .carousel-item.active {
+            opacity: 1;
+            transform: translate3d(0, 0, 0) scale(1.15);
+            z-index: 30;
+            pointer-events: auto;
+        }
+        .carousel-item.prev {
+            opacity: 0.6;
+            transform: translate3d(-110%, 0, -250px) rotateY(35deg) scale(0.85);
+            z-index: 20;
+            pointer-events: auto;
+        }
+        .carousel-item.next {
+            opacity: 0.6;
+            transform: translate3d(110%, 0, -250px) rotateY(-35deg) scale(0.85);
+            z-index: 20;
+            pointer-events: auto;
+        }
+        .carousel-item.far-prev {
+            opacity: 0.2;
+            transform: translate3d(-180%, 0, -500px) rotateY(45deg) scale(0.6);
+            z-index: 10;
+        }
+        .carousel-item.far-next {
+            opacity: 0.2;
+            transform: translate3d(180%, 0, -500px) rotateY(-45deg) scale(0.6);
+            z-index: 10;
+        }
+        .hero-gradient {
+            background: radial-gradient(circle at 50% 50%, rgba(166, 138, 100, 0.08) 0%, rgba(45, 62, 80, 0.05) 100%);
+        }
+
+        /* Ajustes para GoHighLevel: Forzar ancho completo en contenedores del maquetador */
+        .hl_wrapper,
+        .hl_wrapper-container,
+        .custom-code-widget,
+        .col,
+        .row,
+        .section,
+        .col-inner,
+        .inner {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+    </style>
+</head>
+<body class="font-body text-on-surface">
+<!-- TopNavBar component implementation -->
+<header class="bg-background/95 backdrop-blur-md border-b border-silver-edge fixed top-0 w-full z-50">
+<div class="max-w-[1280px] mx-auto px-10 h-20 flex items-center justify-between">
+<a class="flex items-center" href="/">
+<img alt="Óptica Círculo Visión" class="h-10 md:h-12 w-auto object-contain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyDekyEUjLLH18X5_uxPVDG5B9epl3WmGRitz2Je6TsEv2QGgHwJ8WAsWVXIJGLBUk72P1STcP62MWu65KeHGvHx9S6MuyzWQj7YFFB4tSsdpEMfs9B9DwTe8YFdMEnEjPiMAhjMsgFiuavAc6PDzw1TiGo7e8Ydk6G8h2-YsmKU7YIXnCNkNa0xW3q01-dhEXCeXhnVrUK0wcd6cA_XOVQz6ibOXRUGqzmEsgxmzsU3ucElS-dpzeW9ofzA2STRYSRQ"/>
+</a>
+<nav class="hidden lg:flex space-x-10">
+<a class="text-label-uppercase font-label-uppercase text-primary border-b-2 border-primary pb-1" href="#">Colecciones</a>
+<a class="text-label-uppercase font-label-uppercase text-secondary hover:text-primary transition-colors duration-200" href="#">Lentes de Sol</a>
+<a class="text-label-uppercase font-label-uppercase text-secondary hover:text-primary transition-colors duration-200" href="#">Graduados</a>
+<a class="text-label-uppercase font-label-uppercase text-secondary hover:text-primary transition-colors duration-200" href="#">Examen Visual</a>
+<a class="text-label-uppercase font-label-uppercase text-secondary hover:text-primary transition-colors duration-200" href="#">Tiendas</a>
+</nav>
+<div class="flex items-center space-x-6">
+<button class="hover:opacity-80 transition-opacity duration-300"><span class="material-symbols-outlined text-primary">search</span></button>
+<button class="hover:opacity-80 transition-opacity duration-300"><span class="material-symbols-outlined text-primary">person</span></button>
+<button class="hover:opacity-80 transition-opacity duration-300 relative">
+<span class="material-symbols-outlined text-primary">shopping_cart</span>
+<span class="absolute -top-2 -right-2 bg-secondary text-optic-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full">0</span>
+</button>
+</div>
+</div>
+</header>
+<main class="pt-20">
+<!-- New 3D Carousel Hero Section -->
+<section class="relative min-h-[90vh] flex flex-col justify-center overflow-hidden hero-gradient py-12"><div class="absolute inset-0 z-0 opacity-20 pointer-events-none">
+<img alt="Dueños de Óptica Círculo Visión" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBO9yuZWH79frCEhRXs3-715tXpfdFKYKllkBl3T80VjDRI0WyFaYStTdppY82WLuOwBGi-aiZMdDSpi9ckPWhQwFRhQKyLegHOyLRAKKZ1sam0y1LdWRS4dAr6LFz7LpbknEa7WYtU-Aocw2W73QSyQNJ-zFaqV-Hqlh8771frx_jXv_HVyP8x_Mhq7AIPJQZKZVnbNudNd65dNP0EO5MEpD8r8CCrI_8gVvp-H0kjtIOVWE1RP_nShmOCTOXPiUGtGA"/>
+</div>
+<div class="max-w-container-max-width mx-auto px-margin-desktop w-full relative z-10">
+<div class="text-center mb-12 max-w-4xl mx-auto">
+<h1 class="serif-font text-[48px] md:text-[72px] leading-tight text-primary mb-6">Excelencia y Estilo en cada Mirada</h1>
+<p class="font-body-lg text-body-lg text-on-surface/80 max-w-2xl mx-auto">Descubre nuestra selección exclusiva de armazones que combinan tecnología óptica de vanguardia con las últimas tendencias de moda.</p>
+</div>
+<div class="carousel-container mt-8" id="hero-carousel">
+<!-- Carousel Items -->
+<div class="carousel-item shadow-2xl rounded-xl bg-white p-4" data-index="0">
+<img alt="Oahu Campaign" class="w-full h-auto object-cover aspect-[2/3] rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQefKaYQ4R0RoFXo_2Lqiw8nrk1D_dO9cmbTijoDbNRc38oGcg5iF57xY3ArTYj2i-YzsH-SRr6xLt_QySb9JoFuiFtEyXYTk14aYCt2u2hYQfeurr4Smdsue7Z8Uoe5Pc3QPuAv4SklttFoEQ03QYfFolAubclfBP1F3rtxT-g-yhQjIPZyl57iw8mdQwwNk5eLSxTGWKMyQlN_LftSTQ3WKqcaN2BJvfs8JulE2sFG1gYu7IxPTQoU0Z-Q4ZKOktUQ"/>
+</div>
+<div class="carousel-item shadow-2xl rounded-xl bg-white p-4" data-index="1">
+<img alt="Bric à Brac Campaign" class="w-full h-auto object-cover aspect-[2/3] rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7ZegMdknIEChgsrY0UHNx1pgcInJinJuWabQSvJoEZVuvlTXP0u8rkCqcm9Rwn_U-tkmPSoJu1KGUiZEXRjr7Tjs6gZ3qoUMSxA-Uvy1tiv3o5kYdXK5pYxF8szidVJzBAglGfL7pmfRtD0_EKHAX-grZs5sdnzh77W52s4gptb18dPbOK4flug3ZM6Fxwk1ZZeVj9HdprScTRmqfI-pDLtBf_eG_BB8lyql8CQY2wQXh8iTQKOEghKHnTHJqhlNSAA"/>
+</div>
+<div class="carousel-item shadow-2xl rounded-xl bg-white p-4" data-index="2">
+<img alt="GX7 Glamour Campaign" class="w-full h-auto object-cover aspect-[2/3] rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsDR--aaZ92H8Y8aiwk4715DCEpiMIzlRH5LyAf55YP0J5qkDxBfLvXUc7j80Kphwx-UYiUX_AtaZqkmid1V0UzH5nQx5zrb0AdccskzyyKDFSD_S02Ny2UvW7D66xArLedVoq8DVPjaSewtiQ3ZHmPlxGc4TKkgirHb5RLNwO5caBIvxN_-itdzrwdmNJZ9PHyrOKxthpzFJyqposVEEnaOl7cw13XDhF6p9Q5aE8R10DuSIfegTxsFRexdhGoDigIQ"/>
+</div>
+</div>
+<div class="flex justify-center items-center gap-12 mt-16">
+<button class="w-14 h-14 rounded-full border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all" id="prev-btn">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<div class="flex flex-col sm:flex-row gap-4">
+<button class="bg-primary text-optic-white px-10 py-5 font-label-uppercase text-label-uppercase tracking-widest hover:bg-onix-black transition-all">Explorar Colección</button>
+</div>
+<button class="w-14 h-14 rounded-full border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-white transition-all" id="next-btn">
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Abstract background elements -->
+<div class="absolute top-1/2 left-0 -translate-y-1/2 w-64 h-64 bg-secondary/5 blur-[100px] rounded-full"></div>
+<div class="absolute bottom-0 right-0 w-96 h-96 bg-primary/5 blur-[120px] rounded-full"></div>
+</section>
+<!-- Collection Section -->
+<section class="section-spacing bg-white">
+<div class="max-w-container-max-width mx-auto px-margin-desktop">
+<div class="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+<div class="max-w-2xl">
+<h2 class="serif-font text-4xl md:text-5xl text-primary mb-4">Colección Neréa Eyewear</h2>
+<p class="font-body-md text-on-surface/70 border-l-2 border-secondary pl-6">Curaduría exclusiva de Óptica Círculo Visión. Diseños que fusionan la elegancia clásica con toques contemporáneos.</p>
+</div>
+<a class="font-label-uppercase text-label-uppercase text-secondary border-b border-secondary pb-1 hover:text-primary hover:border-primary transition-all" href="#">Ver toda la colección</a>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-gutter gap-y-16">
+<!-- Product 1 -->
+<div class="product-card group cursor-pointer">
+<div class="product-card-img-container aspect-[4/5] mb-6 shadow-sm group-hover:shadow-xl transition-shadow rounded-lg">
+<img alt="Lente Neréa Modelo A" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AP1WRLudoMJ5WwAf1ernWf1Br26Klkg5kU9XSU3fskqiND6a0SnASxdnKrXOQLARe8z1uvnkN4VX-f8RMWwkqhgg0MPsAapLdivamDeEalugyh79gYA8sTJhasZAw-wD9FeBorwG7mbxkX_HHqD6HZlZuhcmNtchPRUP9uB0qJzlE5lgh0b9EClFg4C-SIctifazx9OjAQp-bTdOwzLaTTsyXzP08SIK9HknuL-Z9Gt7vDCqUZyyLPDxdpCVN5o"/>
+</div>
+<h3 class="font-label-uppercase text-label-uppercase text-secondary mb-1">Nerea YC21114 C03</h3>
+<p class="serif-font text-2xl text-primary">$6.200,00 UYU</p>
+</div>
+<!-- Product 2 -->
+<div class="product-card group cursor-pointer">
+<div class="product-card-img-container aspect-[4/5] mb-6 shadow-sm group-hover:shadow-xl transition-shadow rounded-lg">
+<img alt="Lente Neréa Modelo B" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AP1WRLselDqBXPrAq5vzkRPViv1GnBDkJbhLlAsxs2o8JhqitvZT8bwAO-QQDa5TU3W2vYCvCtAgt7XP52fWBtJLtqOXaAqH79i9swYoiK_9bIcieKBO-B9NWEws9zny7JF8ktV-E7QOaenMcS3Me8Myz1835_XZc6pz4kTf6HOS895_JTZMVN8G-JqjEQ8hj0OZnnCpx_qjWRbPRe3VCn8Z0mPcCsGij3NIc-tOs3TVuNriNKoTmacG8AK_06E"/>
+</div>
+<h3 class="font-label-uppercase text-label-uppercase text-secondary mb-1">Nerea YC32026 C01</h3>
+<p class="serif-font text-2xl text-primary">$6.200,00 UYU</p>
+</div>
+<!-- Product 3 -->
+<div class="product-card group cursor-pointer relative">
+<span class="absolute top-4 left-4 z-10 bg-primary text-optic-white text-[10px] px-3 py-1 font-label-uppercase tracking-widest">AGOTADO</span>
+<div class="product-card-img-container aspect-[4/5] mb-6 opacity-70 rounded-lg">
+<img alt="Lente Neréa Modelo C" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida/AP1WRLseVcqj5YMBrTfu2aosEBpy6-UxFpAf_cHtcsJwpCOvvz54C8YZowfFUSC2nZ-PNuZ3tEgA1wY6oUwXjlZAMLED6M5gx8uDcHbrJkOkOY__idnlcZQBXfRt2368H4D2Sbd3yIwK35FCqU_GSNcahHRqCqiL9i58cl-ALNR0FVCiTY7OUk6xkwQbkqo45YT1Gb-PhzNz5Ip8pIJe-HuJLVFGyf25tVfJ_XIlsjOUY94VTMeCWaX9769EGA"/>
+</div>
+<h3 class="font-label-uppercase text-label-uppercase text-secondary mb-1">Nerea YC30032 C03</h3>
+<p class="serif-font text-2xl text-primary">$6.200,00 UYU</p>
+</div>
+</div>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="relative h-[600px] flex items-center">
+<div class="absolute inset-0">
+<img alt="Checkup Background" class="w-full h-full object-cover grayscale brightness-[0.3]" src="https://lh3.googleusercontent.com/aida/AP1WRLtMRJ1i11IOicy_UwORF-Ex6t01eAyoHICfAkasj5l3roOxuD-PVh29LnrLRauVjc9LojId2TiQL05QhkrIRUTmOM4Lny-Aj1x9tYYbHFohkm1J3W7wo8U2Ki5y8oqOe5mAjAGilWPSgjoHNQ80__41sSAiosOpDWEMj-tu7A-2tywyyGJY8PLQ4hqPrRxsEdQwpdVOpPSm1q1h2HTRBg5BuURZ4LcjQjFjJ668p-xpSk-hkvFSDxHFF2A"/>
+</div>
+<div class="relative z-10 w-full max-w-container-max-width mx-auto px-margin-desktop text-center">
+<h2 class="serif-font text-5xl md:text-6xl text-optic-white mb-8">Agenda tu chequeo visual</h2>
+<p class="font-body-lg text-body-lg text-optic-white/80 max-w-2xl mx-auto mb-12">
+                    Nuestros especialistas en Óptica Círculo Visión están listos para ayudarte a mantener una visión clara y saludable. 
+                    Excelencia clínica con disponibilidad para la misma semana.
+                </p>
+<a class="inline-flex items-center gap-4 bg-secondary text-optic-white px-12 py-6 font-label-uppercase text-label-uppercase tracking-[0.2em] hover:bg-primary transition-all shadow-2xl" href="https://wa.me/59891478282?text=Hola!%20Quiero%20agendar%20mi%20control%20visual%20gratis">
+<span class="material-symbols-outlined">chat_bubble</span>
+                    Agendar por WhatsApp
+                </a>
+</div>
+</section>
+<!-- Store Info Section -->
+<section class="section-spacing border-b border-silver-edge">
+<div class="max-w-container-max-width mx-auto px-margin-desktop">
+<div class="mb-16 text-center">
+<h2 class="font-label-uppercase text-label-uppercase tracking-[0.4em] text-secondary mb-4">NUESTRA EXPERIENCIA</h2>
+<p class="serif-font text-3xl text-primary">Compromiso con la Excelencia Visual</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-12 mb-24">
+<div class="text-center p-10 border border-silver-edge hover:border-secondary transition-all duration-500 bg-white rounded-lg">
+<span class="material-symbols-outlined text-5xl mb-8 inline-block text-secondary">local_shipping</span>
+<h3 class="serif-font text-2xl mb-4 text-primary">ENVÍO PRIORITARIO</h3>
+<p class="font-body-md text-on-surface/60">Servicio de entrega gratuito en compras superiores a $5.000 a todo el país.</p>
+</div>
+<div class="text-center p-10 border border-silver-edge hover:border-secondary transition-all duration-500 bg-white rounded-lg">
+<span class="material-symbols-outlined text-5xl mb-8 inline-block text-secondary" style="font-variation-settings: 'FILL' 1;">verified_user</span>
+<h3 class="serif-font text-2xl mb-4 text-primary">GARANTÍA CÍRCULO</h3>
+<p class="font-body-md text-on-surface/60">Respaldo total en cristales y armazones bajo los más altos estándares internacionales.</p>
+</div>
+<div class="text-center p-10 border border-silver-edge hover:border-secondary transition-all duration-500 bg-white rounded-lg">
+<span class="material-symbols-outlined text-5xl mb-8 inline-block text-secondary">support_agent</span>
+<h3 class="serif-font text-2xl mb-4 text-primary">ASESORÍA EXPERTA</h3>
+<p class="font-body-md text-on-surface/60">Especialistas ópticos dedicados a encontrar la solución perfecta para tu estilo de vida.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Blog Section -->
+<section class="section-spacing bg-surface-container-low">
+<div class="max-w-container-max-width mx-auto px-margin-desktop">
+<div class="flex items-center justify-between mb-16 border-b border-primary/10 pb-8">
+<h2 class="serif-font text-4xl text-primary">NOTAS EDITORIALES</h2>
+<a class="font-label-uppercase text-label-uppercase text-secondary border-b border-secondary pb-1 tracking-widest" href="#">Ver todo el blog</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-gutter">
+<!-- Article 1 -->
+<article class="group">
+<div class="overflow-hidden mb-8 aspect-video rounded-lg">
+<img alt="Blog Post Image 1" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida/AP1WRLsC51wYyMcC4GkluivgL7U2YlCwsxgBv9EkOuOugdgrHnb6Q4uAfoPNzWSjGVXwUnMC647GeA9-wj-g08CuVCxavaEgqYw8F3TCsSrp8Be65-9bzOeZ2eeMAE8lYsFU8S5rctE3kujhs8QJNFnML7L4QRb8B1OY3I2s3wqAF-Pr6hSPQYTiU8vpb_p9DhRYhNVyLyLql1ajb5980osBmCxWZ3uEaK4xaS2PjFEiBZkVMdcYpbv9ZLe39Q"/>
+</div>
+<time class="font-label-uppercase text-label-uppercase text-secondary mb-4 block tracking-widest">14 DE JULIO, 2025</time>
+<h3 class="serif-font text-3xl mb-4 group-hover:text-secondary transition-colors">Cristales Monofocales Personalizados: El Arte de la Claridad</h3>
+<p class="font-body-md text-on-surface/70 line-clamp-2 mb-6">Explora cómo la tecnología asférica y la personalización digital han revolucionado la comodidad visual para pacientes exigentes...</p>
+<a class="font-label-uppercase text-label-uppercase text-primary font-bold flex items-center gap-2 group-hover:gap-4 transition-all" href="#">
+                            LEER MÁS <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</article>
+<!-- Article 2 -->
+<article class="group">
+<div class="overflow-hidden mb-8 aspect-video rounded-lg">
+<img alt="Blog Post Image 2" class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" src="https://lh3.googleusercontent.com/aida/AP1WRLufKHO5pZlikXc15B0e76ihxpkuFzlmfIszBSbs2PI3XFzpdysA38XGmxjiyM1l_u1trVo8ovcskYh2xeTESCdVItDaGRX2JJ20KF6v8btKbM6sTBtJ6QGgFoVHSmy75I60DyUQ0EV0EhMcNYLtDf1MDq5tVCPHPoPQshbUygEkrnzY8ORmL6k0wGIEY4OygDKKwShzBsffe6z1L23V7rJtoURTveL0ilh5GAhA8Q39mO4po4alCSRz4U4"/>
+</div>
+<time class="font-label-uppercase text-label-uppercase text-secondary mb-4 block tracking-widest">11 DE DICIEMBRE, 2024</time>
+<h3 class="serif-font text-3xl mb-4 group-hover:text-secondary transition-colors">Cristales Asféricos: Vanguardia Visual</h3>
+<p class="font-body-md text-on-surface/70 line-clamp-2 mb-6">Descubre por qué los lentes asféricos son más delgados, livianos y ofrecen una visión periférica superior frente a los cristales tradicionales.</p>
+<a class="font-label-uppercase text-label-uppercase text-primary font-bold flex items-center gap-2 group-hover:gap-4 transition-all" href="#">
+                            LEER MÁS <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</article>
+</div>
+</div>
+</section>
+<!-- Newsletter Section -->
+<section class="section-spacing bg-primary text-optic-white">
+<div class="max-w-container-max-width mx-auto px-margin-desktop text-center">
+<h2 class="serif-font text-4xl md:text-5xl mb-6">Suscríbete al Círculo</h2>
+<p class="font-body-lg text-body-lg text-optic-white/70 max-w-xl mx-auto mb-10">
+                    Únete a nuestra comunidad exclusiva y obtén un 15% de descuento en tu primera compra en Óptica Círculo Visión.
+                </p>
+<form class="max-w-md mx-auto flex flex-col sm:flex-row gap-0 shadow-2xl">
+<input class="flex-grow bg-white text-primary p-5 border-none focus:ring-2 focus:ring-secondary placeholder:text-primary/40 font-body-md outline-none" placeholder="Correo electrónico" type="email"/>
+<button class="bg-secondary text-optic-white px-8 py-5 font-label-uppercase text-label-uppercase tracking-widest hover:bg-onix-black transition-all" type="submit">Suscribirme</button>
+</form>
+</div>
+</section>
+</main>
+<!-- Footer component implementation -->
+<footer class="bg-onix-black text-optic-white border-t border-white/10">
+<div class="max-w-[1280px] mx-auto px-10 py-[120px] grid grid-cols-1 md:grid-cols-4 gap-gutter">
+<div class="md:col-span-1">
+<div class="text-headline-md font-headline-md text-optic-white mb-6">Óptica Círculo Visión</div>
+<p class="text-on-tertiary-container font-body-md mb-8 leading-relaxed">Referentes en salud visual y curaduría de armazones internacionales de lujo. Tu visión es nuestro propósito.</p>
+<div class="flex space-x-6">
+<a class="text-on-tertiary-container hover:text-secondary transition-all" href="#"><span class="material-symbols-outlined">face_nod</span></a>
+<a class="text-on-tertiary-container hover:text-secondary transition-all" href="#"><span class="material-symbols-outlined">photo_camera</span></a>
+<a class="text-on-tertiary-container hover:text-secondary transition-all" href="#"><span class="material-symbols-outlined">movie</span></a>
+</div>
+</div>
+<div>
+<h4 class="text-label-uppercase font-label-uppercase mb-8 tracking-widest text-secondary">EXPLORAR</h4>
+<ul class="space-y-4">
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Colecciones</a></li>
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Examen Visual</a></li>
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Graduados</a></li>
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Lentes de Sol</a></li>
+</ul>
+</div>
+<div>
+<h4 class="text-label-uppercase font-label-uppercase mb-8 tracking-widest text-secondary">SOPORTE</h4>
+<ul class="space-y-4">
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Contacto</a></li>
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Envíos y Devoluciones</a></li>
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Preguntas Frecuentes</a></li>
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Garantía</a></li>
+</ul>
+</div>
+<div>
+<h4 class="text-label-uppercase font-label-uppercase mb-8 tracking-widest text-secondary">LEGAL</h4>
+<ul class="space-y-4">
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Política de Privacidad</a></li>
+<li><a class="text-on-tertiary-container hover:text-optic-white transition-colors text-body-md font-body-md" href="#">Términos y Condiciones</a></li>
+</ul>
+</div>
+</div>
+<div class="max-w-[1280px] mx-auto px-10 border-t border-white/5 py-10 flex flex-col md:flex-row justify-between items-center gap-6">
+<p class="text-on-tertiary-container font-label-uppercase text-[10px] tracking-widest">© 2024 Óptica Círculo Visión. Todos los derechos reservados.</p>
+<div class="flex items-center gap-6 opacity-40 grayscale invert">
+<span class="material-symbols-outlined text-3xl">credit_card</span>
+<span class="material-symbols-outlined text-3xl">account_balance_wallet</span>
+<span class="material-symbols-outlined text-3xl">contactless</span>
+</div>
+</div>
+</footer>
+<script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 3D Carousel Logic
+            const carousel = document.getElementById('hero-carousel');
+            const items = Array.from(carousel.querySelectorAll('.carousel-item'));
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+            let currentIndex = 0;
+
+            function updateCarousel() {
+                const total = items.length;
+                items.forEach((item, i) => {
+                    item.className = 'carousel-item shadow-2xl rounded-xl bg-white p-4';
+                    
+                    if (i === currentIndex) {
+                        item.classList.add('active');
+                    } else if (i === (currentIndex - 1 + total) % total) {
+                        item.classList.add('prev');
+                    } else if (i === (currentIndex + 1) % total) {
+                        item.classList.add('next');
+                    } else if (i === (currentIndex - 2 + total) % total) {
+                        item.classList.add('far-prev');
+                    } else if (i === (currentIndex + 2) % total) {
+                        item.classList.add('far-next');
+                    }
+                });
+            }
+
+            function next() {
+                currentIndex = (currentIndex + 1) % items.length;
+                updateCarousel();
+            }
+
+            function prev() {
+                currentIndex = (currentIndex - 1 + items.length) % items.length;
+                updateCarousel();
+            }
+
+            prevBtn.addEventListener('click', prev);
+            nextBtn.addEventListener('click', next);
+
+            // Auto-rotate
+            let autoRotate = setInterval(next, 5000);
+            
+            carousel.addEventListener('mouseenter', () => clearInterval(autoRotate));
+            carousel.addEventListener('mouseleave', () => autoRotate = setInterval(next, 5000));
+
+            updateCarousel();
+
+            // Entry animations for other sections
+            const observerOptions = { threshold: 0.1 };
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('opacity-100', 'translate-y-0');
+                        entry.target.classList.remove('opacity-0', 'translate-y-8');
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('section:not(.hero-section), article').forEach(el => {
+                el.classList.add('transition-all', 'duration-1000', 'ease-out', 'opacity-0', 'translate-y-8');
+                observer.observe(el);
+            });
+        });
+    </script>
+</body></html>
