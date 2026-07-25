@@ -27,7 +27,7 @@ REGLAS DE ORO DE CONVERSACIÓN (ESTRICTAS):
 4. TEST VISUAL: Menciona que el test visual computarizado es 100% GRATIS ÚNICAMENTE cuando el cliente pregunte si hacen examen de vista o cuánto cuesta la revisión.
    Ej: "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso. ¿Te gustaría coordinar un turno?"
 5. MULTIFOCALES / CRISTALES: Responde de forma concisa sobre demoras (5 días), garantía (60 días de adaptación) y 12 cuotas sin recargo.
-6. TRASPASO A NICO: Si consulta por stock de una marca/modelo específico o pide hablar con una persona, dile:
+6. TRASPASO A NICO / STAFF: Si consulta por stock de una marca/modelo específico o pide hablar con una persona, dile:
    "¡Con gusto! Te conecto directamente con Nico y el equipo en el local para asesorarte. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
@@ -101,6 +101,34 @@ async function generateAIResponse(userMessage) {
   return getSmartResponse(userMessage);
 }
 
+// Verificar si el contacto tiene etiqueta de atención humana o si la IA está pausada
+async function isIAHandledByHuman(contactId) {
+  try {
+    const res = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, {
+      headers: {
+        'Authorization': `Bearer ${GHL_TOKEN}`,
+        'Version': '2021-07-28',
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!res.ok) return false;
+    const data = await res.json();
+    const tags = data.contact?.tags || [];
+
+    const humanTags = ['Atencion_Humana', 'Hablar_con_Humano', 'IA_Pausada', 'Atendido_por_Staff'];
+    const isPaused = tags.some(t => humanTags.includes(t));
+
+    if (isPaused) {
+      console.log(`⏸️ IA Pausada para ${contactId} (Etiquetas: ${tags.join(', ')})`);
+    }
+    return isPaused;
+  } catch (e) {
+    console.error("Error verificando tags de humano:", e.message);
+    return false;
+  }
+}
+
 async function ensureOpportunityAndAssignToNico(contactId, contactName) {
   try {
     const headers = {
@@ -137,15 +165,33 @@ async function handleWebhook(req, res) {
   console.log("📥 Webhook recibido de GHL:", JSON.stringify(req.body, null, 2));
 
   const contactId = req.body.contact_id || req.body.contactId || req.body.contact?.id || req.body.id;
-  const incomingMessage = typeof req.body.message === 'string' ? req.body.message : (req.body.message?.body || req.body.body || req.body.text || req.body.customData?.message || "");
-  
-  const firstName = req.body.first_name || req.body.contact?.first_name || "";
-  const lastName = req.body.last_name || req.body.contact?.last_name || "";
-  const contactName = `${firstName} ${lastName}`.trim();
+  const direction = req.body.direction || req.body.type || "";
+  const userId = req.body.userId || req.body.user_id;
+
+  // 1. Si el mensaje fue ENVIADO POR EL EQUIPO (Nico, Sabrina, Patricia) desde GHL / App
+  if (direction === 'outbound' || direction === 'outbound-api' || direction === 'Outbound' || userId) {
+    console.log(`👤 Mensaje del equipo (Staff) detectado. Pausando IA para el contacto ${contactId}...`);
+    if (contactId) {
+      await addTagToContact(contactId, "Atencion_Humana");
+    }
+    return res.status(200).json({ status: "staff_message_detected_ia_paused" });
+  }
 
   if (!contactId) {
     return res.status(200).json({ status: "ignored" });
   }
+
+  // 2. Verificar si la IA está pausada porque está siendo atendido por un humano
+  const isHumanActive = await isIAHandledByHuman(contactId);
+  if (isHumanActive) {
+    console.log(`🛑 Mensaje de cliente ignorado por la IA porque Nico/Staff tiene el control.`);
+    return res.status(200).json({ status: "paused_human_active" });
+  }
+
+  const incomingMessage = typeof req.body.message === 'string' ? req.body.message : (req.body.message?.body || req.body.body || req.body.text || req.body.customData?.message || "");
+  const firstName = req.body.first_name || req.body.contact?.first_name || "";
+  const lastName = req.body.last_name || req.body.contact?.last_name || "";
+  const contactName = `${firstName} ${lastName}`.trim();
 
   await ensureOpportunityAndAssignToNico(contactId, contactName);
 
