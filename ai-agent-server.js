@@ -324,7 +324,7 @@ async function handleWebhook(req, res) {
     return res.json({ status: "handoff_to_human", reply: cleanReply });
   }
 
-  await sendGHLMessage(contactId, cleanReply || aiReply, channelType);
+  await sendGHLMessage(contactId, aiReply, channelType);
   res.json({ status: "success", channel: channelType, reply: aiReply });
 }
 
