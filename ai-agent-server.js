@@ -28,8 +28,7 @@ MANUAL DE RESPUESTAS CONVERSACIONALES:
 1. RESPUESTA A CONSULTAS DE PRODUCTOS O COTIZACIÓN (ej: Varilux, Physio, Zeiss, cristales, precio):
    - Menciona directamente el producto consultado.
    - Explica que el costo exacto varía según la receta/graduación (filtros antireflejantes o fotocromáticos) y que aceptan 12 cuotas sin recargo.
-   - Pide la foto de la receta o te ofrece conectar con Nico para cotizar en el acto.
-   - Ejemplo: "¡Hola! 😊 Los multifocales Varilux Physio son una opción de alta gama excelente. El costo exacto se calcula según la graduación de tu receta y los filtros elegidos (contamos con hasta 12 cuotas sin recargo). ¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o te conecto con Nico?"
+   - Pide la foto de la receta o ofrece conectar con Nico para cotizar en el acto.
 
 2. SI EL CLIENTE RESPONDE QUE TIENE RECETA:
    - "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto."
@@ -37,7 +36,7 @@ MANUAL DE RESPUESTAS CONVERSACIONALES:
 3. SOLICITUD DE MÁS INFORMACIÓN O SALUDO INICIAL:
    - "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual computarizado 100% GRATIS y hasta 12 cuotas sin recargo. 👓
 
-     Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en el local?"
+     Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en nuestro local?"
 
 4. SOLICITUD DE AGENDAMIENTO / TURNO:
    - "¡Hola! 😊 Hacemos test visual computarizado en Av. Millán 4494 y es 100% GRATIS y sin compromiso. 🩺
@@ -60,14 +59,12 @@ MANUAL DE RESPUESTAS CONVERSACIONALES:
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase().trim() : "";
 
-  // 1. Marcas Específicas / Cotizaciones de Cristales
   if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor")) {
     return "¡Hola! 😊 Los multifocales Varilux Physio son una excelente opción de alta gama en cristales digitales. 👓\n\n" +
       "El precio exacto depende de la graduación específica de tu receta (y si requieres filtros antireflejantes o fotocromáticos). Aceptamos todas las tarjetas hasta en 12 cuotas sin recargo.\n\n" +
       "¿Tienes la foto de tu receta a mano así te pasamos la cotización exacta o te conecto directamente con Nico para asesorarte?";
   }
 
-  // 2. Respuesta a Turno Solo ("tarde" o "mañana")
   if (msg === "tarde" || msg === "de tarde" || msg === "en la tarde") {
     return "¡Genial! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la tarde?";
   }
@@ -76,54 +73,45 @@ function getSmartResponse(userMessage) {
     return "¡Bárbaro! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la mañana?";
   }
 
-  // 3. Respuesta a Día de la Semana ("Miércoles", "Jueves", etc.)
   const daysList = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado"];
   if (daysList.some(d => msg.includes(d))) {
     return "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de **Av. Millán 4494** (Montevideo). 🩺\n\n" +
       "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
   }
 
-  // 4. Si el cliente dice que TIENE RECETA
   if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("tengo examen")) {
     return "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto.";
   }
 
-  // 5. Preguntas sobre Cristales / Multifocales / Precios Generales
   if (msg.includes("multifocal") || msg.includes("cristal") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("precio") || msg.includes("cotizacion") || msg.includes("cuota") || msg.includes("tarjeta")) {
     return "¡Hola! 😊 Nuestros multifocales digitales cuentan con 60 días de garantía de adaptación y demoran solo 5 días hábiles. 👓\n\n" +
       "El precio varía según la graduación de tu receta (aceptamos 12 cuotas sin recargo). ¿Tienes la foto de tu receta a mano así te cotizamos o te gustaría agendar un chequeo gratis?";
   }
 
-  // 6. SOLO si el cliente pregunta EXPLÍCITAMENTE por convenios o descuentos de mutualista
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
       "¿A qué convenio o mutualista perteneces tú así te paso el descuento exacto?";
   }
 
-  // 7. Agendamiento / Turnos
   if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
     return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
       "¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?";
   }
 
-  // 8. Marcas
   if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
     return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
       "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
   }
 
-  // 9. Horarios / Ubicación
   if (msg.includes("horario") || msg.includes("donde") || msg.includes("direccion") || msg.includes("abierto") || msg.includes("ubicacion") || msg.includes("millan")) {
     return "Estamos ubicados en **Av. Millán 4494** (Montevideo). 📍\n\n" +
       "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
-  // 10. Traspaso Humano
   if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // 11. Información General / Saludo
   return "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS y 12 cuotas sin recargo. 👓\n\n" +
     "Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en nuestro local?";
 }
@@ -161,6 +149,7 @@ async function generateAIResponse(userMessage) {
   return getSmartResponse(userMessage);
 }
 
+// Proceso de agendamiento inteligente con verificación de disponibilidad en tiempo real (evita sobreposición de turnos)
 async function processAutoBooking(contactId, userMessage) {
   try {
     const headers = {
@@ -169,6 +158,7 @@ async function processAutoBooking(contactId, userMessage) {
       'Content-Type': 'application/json'
     };
 
+    // 1. Mover tarjeta de oportunidad en el CRM a la columna 'Agenda'
     const searchRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=50`, { headers });
     const searchData = await searchRes.json();
     
@@ -190,11 +180,31 @@ async function processAutoBooking(contactId, userMessage) {
 
     await addTagToContact(contactId, "Turno_Agendado");
 
-    const startTime = new Date();
-    startTime.setDate(startTime.getDate() + 1);
-    startTime.setHours(15, 0, 0, 0);
-    const endTime = new Date(startTime.getTime() + 30 * 60000);
+    // 2. Consultar horarios libres (Free Slots) en el Calendario de la Óptica para evitar sobreposición
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+    const endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 7).getTime();
 
+    let chosenStartTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    chosenStartTime.setHours(15, 0, 0, 0);
+
+    try {
+      const freeSlotsRes = await fetch(`https://services.leadconnectorhq.com/calendars/${DEFAULT_CALENDAR_ID}/free-slots?startDate=${startDate}&endDate=${endDate}`, { headers });
+      const freeSlotsData = await freeSlotsRes.json();
+
+      const dates = Object.keys(freeSlotsData).filter(k => k !== 'traceId');
+      if (dates.length > 0 && freeSlotsData[dates[0]]?.slots?.length > 0) {
+        const availableSlotISO = freeSlotsData[dates[0]].slots[0];
+        chosenStartTime = new Date(availableSlotISO);
+        console.log(`✅ Horario libre verificado y seleccionado en GHL: ${availableSlotISO}`);
+      }
+    } catch (errSlots) {
+      console.log("No se pudo consultar free-slots, usando horario por defecto:", errSlots.message);
+    }
+
+    const chosenEndTime = new Date(chosenStartTime.getTime() + 30 * 60000);
+
+    // 3. Crear la cita directamente en el Calendario de la Óptica
     await fetch('https://services.leadconnectorhq.com/calendars/events/appointments', {
       method: 'POST',
       headers,
@@ -202,12 +212,14 @@ async function processAutoBooking(contactId, userMessage) {
         calendarId: DEFAULT_CALENDAR_ID,
         locationId: GHL_LOCATION_ID,
         contactId: contactId,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
+        startTime: chosenStartTime.toISOString(),
+        endTime: chosenEndTime.toISOString(),
         title: "Test Visual Gratis - Óptica Círculo Visión",
         appointmentStatus: "confirmed"
       })
     });
+    console.log(`🩺 Cita agendada exitosamente en 'Calendario de la Optica' a las ${chosenStartTime.toISOString()}`);
+
   } catch (e) {
     console.error("Error en proceso de agendamiento:", e.message);
   }
