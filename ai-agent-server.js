@@ -18,38 +18,42 @@ const DEFAULT_CALENDAR_ID = "r7BEH6BpgfYJ1xJ47G99"; // Calendario Óptica Círcu
 
 const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
-Atiendes clientes de WhatsApp, Instagram y Facebook. Tu estilo es 100% uruguayo, empático, profesional y natural.
+Tu objetivo es brindar una atención humana, profesional, cálida y de altísima conversión en WhatsApp, Instagram y Facebook.
 
-CONOCIMIENTO COMERCIAL Y MANUAL DE RESPUESTA:
+MANUAL DE EXPERIENCIA CONVERSACIONAL (100% OPTIMIZADO):
 
-1. SALUDO INICIAL Y SOLICITUD DE INFORMACIÓN:
-   - Sé breve (2 a 3 líneas).
-   - Preséntate amigablemente y avanza preguntándole si cuenta con receta médica o si necesita coordinar un chequeo visual gratis.
-   - Ejemplo: "¡Hola! 😊 Con mucho gusto te asesoro. Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?"
+1. SOLICITUD DE MÁS INFORMACIÓN O SALUDO INICIAL:
+   - Responde de forma cálida, concisa y comercialmente estratégica.
+   - Presenta los beneficios clave (Test Visual Gratis, Convenios CJPB/STIQ/BPS, 12 cuotas sin recargo) y cualifica al cliente.
+   - Ejemplo de respuesta:
+     "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS, convenios (CJPB, STIQ, BPS) y 12 cuotas sin recargo.
 
-2. AGENDAMIENTO AUTÓNOMO DE TEST VISUAL:
-   - El test visual computarizado en Av. Millán 4494 es 100% GRATIS y sin compromiso.
-   - Si el cliente da un día o hora (ej: "jueves a las 15", "mañana de tarde", "el sábado a las 10"):
-     Confirma con entusiasmo: "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de Av. Millán 4494. Te esperamos con gusto en la sucursal. 🩺 ¡Muchas gracias!"
+     Para orientarte mejor: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en el local?"
 
-3. CONVENIOS Y SUBSIDIOS COMERCIALES:
+2. SI EL CLIENTE RESPONDE QUE TIENE RECETA:
+   - "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto con tu convenio."
+
+3. SI EL CLIENTE RESPONDE QUE NECESITA CHEQUEO O QUIERE AGENDARSE:
+   - Si da un día u hora (ej: "jueves a las 15 hs", "mañana de tarde", "el sábado a las 10"):
+     "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de Av. Millán 4494. Te esperamos con gusto en la sucursal. 🩺 ¡Muchas gracias!"
+
+4. CONVENIOS Y SUBSIDIOS COMERCIALES:
    - Caja Bancaria (CJPB): 15% OFF efectivo, 10% débito, 5% crédito.
    - Sindicato Químico (STIQ): 20% OFF efectivo, 15% débito, 5% crédito.
    - Círculo Católico / Hosp. Evangélico: 15% OFF efectivo.
-   - Ferrocarril Norte / Liga MVD / Gimnasios (Salvaje, Vulcano, Fitlab, Sayago, Racing, Plaza 7): 10% a 15% OFF.
+   - Ferrocarril Norte / Liga MVD / Gimnasios: 10% a 15% OFF.
    - BPS: Tramitamos el 100% del subsidio oficial de lentes de receta.
 
-4. MARCAS Y PRODUCTOS:
-   - Más de 50 marcas de primer nivel (Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales). Pregunta si busca algún modelo particular.
+5. MARCAS Y PRODUCTOS:
+   - Más de 50 marcas (Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales).
    - Cristales monofocales (~3 días hábiles) y Multifocales Digitales (~5 días hábiles).
    - 60 días de garantía de adaptación en multifocales.
    - Pago: 12 CUOTAS SIN RECARGO con todas las tarjetas de crédito.
 
-5. HORARIOS Y UBICACIÓN:
-   - Dirección: Av. Millán 4494 (Montevideo).
-   - Horarios: Lunes a Viernes de 09:00 a 19:00 hs, Sábados de 09:00 a 14:00 hs.
+6. HORARIOS Y UBICACIÓN:
+   - Av. Millán 4494 (Montevideo). Lunes a Viernes 09:00 a 19:00 hs, Sábados 09:00 a 14:00 hs.
 
-6. TRASPASO HUMANO A NICO / STAFF:
+7. TRASPASO HUMANO A NICO / STAFF:
    - Si piden hablar con una persona o stock específico: "¡Con gusto! Te conecto con Nico y el equipo en el local. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
@@ -65,41 +69,59 @@ function isBookingConfirmation(msg) {
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase() : "";
 
+  // Solicitud de Más Información
+  if (msg.includes("info") || msg.includes("informacion") || msg.includes("asesor") || msg.includes("consulta") || msg.includes("detalles") || msg.includes("mas info") || msg.includes("buenas") || msg.includes("hola")) {
+    return "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS, convenios (CJPB, STIQ, BPS) y 12 cuotas sin recargo. 👓\n\n" +
+      "Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en nuestro local?";
+  }
+
+  // Tiene Receta
+  if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("tengo examen")) {
+    return "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto con el beneficio de tu convenio.";
+  }
+
+  // Agendamiento con fecha/hora
   if (isBookingConfirmation(msg)) {
     return "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de **Av. Millán 4494** (Montevideo). 🩺\n\n" +
       "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
   }
 
+  // Agendamiento general
   if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
     return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
-      "¿Qué día y horario te queda más cómodo esta semana para reservarte el turno?";
+      "¿Qué día y horario te queda más cómodo esta semana (Lun a Vie 9-19 hs, Sáb 9-14 hs) para reservarte el turno?";
   }
 
+  // Marcas
   if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
     return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
       "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
   }
 
+  // Convenios
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
       "¿A qué convenio o mutualista perteneces tú así te paso el descuento exacto?";
   }
 
+  // Multifocales / Cristales / Precios
   if (msg.includes("multifocal") || msg.includes("cristal") || msg.includes("demora") || msg.includes("tiempo") || msg.includes("garantia") || msg.includes("precio") || msg.includes("cuota") || msg.includes("tarjeta") || msg.includes("lente")) {
     return "Nuestros multifocales digitales demoran solo 5 días hábiles y cuentan con 60 días de garantía de adaptación. 👓\n\n" +
       "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo. ¿Te gustaría coordinar una visita al local?";
   }
 
+  // Horarios / Ubicación
   if (msg.includes("horario") || msg.includes("donde") || msg.includes("direccion") || msg.includes("abierto") || msg.includes("ubicacion") || msg.includes("millan")) {
     return "Estamos ubicados en **Av. Millán 4494** (Montevideo). 📍\n\n" +
       "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
+  // Traspaso Humano
   if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  return "¡Hola! 😊 Con mucho gusto te asesoro. Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?";
+  return "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS, convenios (CJPB, STIQ, BPS) y 12 cuotas sin recargo. ¿Ya cuentas con tu receta médica o prefieres coordinar un chequeo gratis?";
 }
 
 async function generateAIResponse(userMessage) {
@@ -251,7 +273,7 @@ async function handleWebhook(req, res) {
   const direction = req.body.direction || req.body.type || "";
   const userId = req.body.userId || req.body.user_id;
 
-  // Detección dinámica del canal (WhatsApp vs Instagram ('IG') vs Facebook ('FB'))
+  // Detección dinámica del canal (WhatsApp, Instagram ('IG'), Facebook ('FB'))
   let channelType = 'WhatsApp';
   const rawChannel = (req.body.channel || req.body.message_type || req.body.type || req.body.provider || "").toLowerCase();
   
@@ -308,7 +330,7 @@ app.post('/webhook/ghl-message', handleWebhook);
 app.post('/', handleWebhook);
 
 app.get('/', (req, res) => {
-  res.send("🚀 Servidor de Agente IA Óptica Círculo Visión activo 24/7.");
+  res.send("🚀 Servidor de Agente IA Omnicanal Círculo Visión activo 24/7.");
 });
 
 async function sendGHLMessage(contactId, messageText, channelType = 'WhatsApp') {
