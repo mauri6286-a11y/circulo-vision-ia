@@ -109,7 +109,7 @@ function getSmartResponse(userMessage) {
   }
 
   if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
-    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
+    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
       "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
   }
 
