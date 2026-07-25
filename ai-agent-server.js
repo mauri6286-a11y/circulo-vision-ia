@@ -70,26 +70,40 @@ REGLAS DE ATENCIÓN EN WHATSAPP:
 
 async function generateAIResponse(userMessage) {
   if (!GEMINI_API_KEY) {
+    console.warn("⚠️ GEMINI_API_KEY no está configurada en las variables de entorno.");
     return "¡Hola! Gracias por comunicarte con Óptica Círculo Visión en Millán 4494. Tu test visual es GRATIS y abrimos de Lun a Vie de 9 a 19 hs y Sáb de 9 a 14 hs. ¿En qué te asesoramos?";
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  const contents = [
-    { role: 'user', parts: [{ text: `${SYSTEM_PROMPT}\n\nMensaje del cliente: "${userMessage}"` }] }
-  ];
+  const models = ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
 
-  try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents })
-    });
-    const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "¡Hola! Gracias por contactar a Óptica Círculo Visión. ¿En qué te podemos ayudar hoy?";
-  } catch (err) {
-    console.error("Error consultando IA:", err.message);
-    return "¡Hola! Gracias por escribir a Óptica Círculo Visión. En breve te responderemos.";
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      const contents = [
+        { role: 'user', parts: [{ text: `${SYSTEM_PROMPT}\n\nMensaje del cliente: "${userMessage}"` }] }
+      ];
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents })
+      });
+
+      const data = await res.json();
+      
+      if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+        return data.candidates[0].content.parts[0].text;
+      }
+      
+      if (data.error) {
+        console.error(`⚠️ Error en modelo ${model}:`, data.error.message || JSON.stringify(data.error));
+      }
+    } catch (err) {
+      console.error(`❌ Error en petición a ${model}:`, err.message);
+    }
   }
+
+  return "¡Hola! Gracias por comunicarte con Óptica Círculo Visión (Av. Millán 4494). Contamos con convenio CJPB, BPS, STIQ, 12 cuotas sin recargo y tu test visual es GRATIS. ¿En qué te podemos ayudar?";
 }
 
 // Crear oportunidad y asignar a Nico automáticamente
