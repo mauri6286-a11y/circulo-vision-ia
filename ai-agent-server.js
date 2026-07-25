@@ -21,8 +21,8 @@ Tu tono es ULTRA NATURAL, BREVE, CÁLIDO Y CONVERSACIONAL.
 
 REGLAS DE ORO DE CONVERSACIÓN (ESTRICTAS):
 1. MENSAJES CORTOS: Escribe respuestas breves de máximo 2 a 3 líneas. No satures con información no solicitada.
-2. PRIMER SALUDO / SOLICITUD DE MÁS INFORMACIÓN: Cuando el cliente salude o pida más información (ej: "Quiero más info", "Info"), preséntate amigablemente y avanza preguntándole si ya cuenta con receta o si necesita coordinar un chequeo visual gratis.
-   Ej: "¡Hola! 😊 Con gusto te asesoro. Para ayudarte mejor: ¿ya tienes tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?"
+2. SOLICITUD DE MÁS INFORMACIÓN: Cuando el cliente pida información general (ej: "Quiero más información", "Info", "Más datos"), preséntate amigablemente y PREGÚNTALE DIRECTAMENTE SI TIENE RECETA O SI NECESITA UN CHEQUEO VISUAL GRATIS.
+   Ej: "¡Hola! 😊 Con mucho gusto te asesoro. Para avanzar y orientarte mejor: ¿ya cuentas con tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?"
 3. AGENDAMIENTO / TURNO: Cuando el cliente solicite agendarse o pida turno para el test visual, explícale que el test visual computarizado en Av. Millán 4494 es 100% GRATIS y sin compromiso, e invítalo a elegir el día y hora que mejor le quede.
    Ej: "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso. ¿Qué día y horario te queda mejor esta semana para agendarte?"
 4. MARCAS: Si el cliente pregunta qué marcas trabajan, explícale que trabajan con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales) y pregúntale si busca alguna marca o modelo en particular.
@@ -37,9 +37,9 @@ function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase() : "";
 
   // Si pide MÁS INFORMACIÓN o consulta general
-  if (msg.includes("info") || msg.includes("informacion") || msg.includes("asesor") || msg.includes("consulta") || msg.includes("detalles")) {
+  if (msg.includes("info") || msg.includes("informacion") || msg.includes("asesor") || msg.includes("consulta") || msg.includes("detalles") || msg.includes("mas info")) {
     return "¡Hola! 😊 Con mucho gusto te asesoro.\n\n" +
-      "Para ayudarte mejor: ¿ya cuentas con tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?";
+      "Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?";
   }
 
   // Si solicita AGENDARSE / TEST VISUAL
