@@ -22,18 +22,26 @@ REGLAS DE ORO DE CONVERSACIÓN (ESTRICTAS):
 1. MENSAJES CORTOS: Escribe respuestas breves de máximo 2 a 3 líneas. No satures con información no solicitada.
 2. PRIMER SALUDO: Si saluda por primera vez, preséntate brevemente y pregúntale cómo lo puedes ayudar.
    Ej: "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión (Av. Millán 4494). ¡Qué gusto saludarte! ¿En qué te podemos ayudar hoy?"
-3. CONVENIOS: Si pregunta por convenios, pregúntale a qué mutualista o sindicato pertenece para darle el dato exacto.
+3. MARCAS: Si el cliente pregunta qué marcas trabajan o si tienen armazones de marca, explícale que trabajan con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales) y pregúntale si busca alguna marca o modelo en particular.
+   Ej: "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales). ¿Buscas alguna marca o modelo en particular así te confirmo si la tenemos disponible?"
+4. CONVENIOS: Si pregunta por convenios, pregúntale a qué mutualista o sindicato pertenece para darle el dato exacto.
    Ej: "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes. ¿A qué convenio o mutualista perteneces tú así te paso el beneficio exacto?"
-4. TEST VISUAL: Menciona que el test visual computarizado es 100% GRATIS ÚNICAMENTE cuando el cliente pregunte si hacen examen de vista o cuánto cuesta la revisión.
+5. TEST VISUAL: Menciona que el test visual computarizado es 100% GRATIS ÚNICAMENTE cuando el cliente pregunte si hacen examen de vista o cuánto cuesta la revisión.
    Ej: "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso. ¿Te gustaría coordinar un turno?"
-5. MULTIFOCALES / CRISTALES: Responde de forma concisa sobre demoras (5 días), garantía (60 días de adaptación) y 12 cuotas sin recargo.
-6. TRASPASO A NICO / STAFF: Si consulta por stock de una marca/modelo específico o pide hablar con una persona, dile:
+6. MULTIFOCALES / CRISTALES: Responde de forma concisa sobre demoras (5 días), garantía (60 días de adaptación) y 12 cuotas sin recargo.
+7. TRASPASO A NICO / STAFF: Si consulta por stock de una marca/modelo específico o pide hablar con una persona, dile:
    "¡Con gusto! Te conecto directamente con Nico y el equipo en el local para asesorarte. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
 // Respuestas Breves y Contextuales
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase() : "";
+
+  // Si pregunta específicamente por MARCAS
+  if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas") || msg.includes("coleccion")) {
+    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 y marcas internacionales).\n\n" +
+      "¿Buscas alguna marca o modelo en particular así te confirmo si la tenemos disponible?";
+  }
 
   // Si pregunta específicamente por el TEST / EXAMEN VISUAL
   if (msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("medir") || msg.includes("vista") || msg.includes("oftalm")) {
@@ -60,7 +68,7 @@ function getSmartResponse(userMessage) {
   }
 
   // Si pide hablar con Nico o atención humana
-  if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock") || msg.includes("modelo") || msg.includes("marca")) {
+  if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
@@ -101,7 +109,7 @@ async function generateAIResponse(userMessage) {
   return getSmartResponse(userMessage);
 }
 
-// Verificar si el contacto tiene etiqueta de atención humana o si la IA está pausada
+// Verificar si el contacto tiene etiqueta de atención humana
 async function isIAHandledByHuman(contactId) {
   try {
     const res = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, {
@@ -116,7 +124,6 @@ async function isIAHandledByHuman(contactId) {
     const data = await res.json();
     const tags = data.contact?.tags || [];
 
-    // Verificación insensible a mayúsculas/minúsculas/acentos
     const isPaused = tags.some(t => {
       const lower = t.toLowerCase();
       return lower.includes("humano") || lower.includes("atencion_humana") || lower.includes("pausad") || lower.includes("staff");
@@ -171,7 +178,6 @@ async function handleWebhook(req, res) {
   const direction = req.body.direction || req.body.type || "";
   const userId = req.body.userId || req.body.user_id;
 
-  // 1. Si el mensaje fue ENVIADO POR EL EQUIPO (Nico, Sabrina, Patricia) desde GHL / App
   if (direction === 'outbound' || direction === 'outbound-api' || direction === 'Outbound' || userId) {
     console.log(`👤 Mensaje del equipo (Staff) detectado. Pausando IA para el contacto ${contactId}...`);
     if (contactId) {
@@ -184,7 +190,6 @@ async function handleWebhook(req, res) {
     return res.status(200).json({ status: "ignored" });
   }
 
-  // 2. Verificar si la IA está pausada porque está siendo atendido por un humano
   const isHumanActive = await isIAHandledByHuman(contactId);
   if (isHumanActive) {
     console.log(`🛑 Mensaje de cliente ignorado por la IA porque Nico/Staff tiene el control.`);
