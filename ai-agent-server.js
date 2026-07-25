@@ -33,41 +33,54 @@ MANUAL DE EXPERIENCIA CONVERSACIONAL (100% OPTIMIZADO):
 2. SI EL CLIENTE RESPONDE QUE TIENE RECETA:
    - "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto con tu convenio."
 
-3. SI EL CLIENTE RESPONDE QUE NECESITA CHEQUEO O QUIERE AGENDARSE:
-   - Si da un día u hora (ej: "jueves a las 15 hs", "mañana de tarde", "el sábado a las 10"):
-     "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de Av. Millán 4494. Te esperamos con gusto en la sucursal. 🩺 ¡Muchas gracias!"
+3. SOLICITUD DE AGENDAMIENTO / TURNO:
+   - El test visual computarizado en Av. Millán 4494 es 100% GRATIS y sin compromiso.
+   - Pregúntale al cliente qué días le sirven y preferentemente si le conviene de mañana o de tarde, para coordinarle el lugar en la agenda.
+   - Ejemplo de respuesta:
+     "¡Hola! 😊 Hacemos test visual computarizado en Av. Millán 4494 y es 100% GRATIS y sin compromiso. 🩺
 
-4. CONVENIOS Y SUBSIDIOS COMERCIALES:
+     ¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?"
+
+4. SI EL CLIENTE DA SUS PREFERENCIAS DE DÍA / TURNO (ej: "jueves de tarde", "mañana en la mañana", "sábado de mañana"):
+   - Confirma con entusiasmo: "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de Av. Millán 4494. Te esperamos con gusto en la sucursal. 🩺 ¡Muchas gracias!"
+
+5. CONVENIOS Y SUBSIDIOS COMERCIALES:
    - Caja Bancaria (CJPB): 15% OFF efectivo, 10% débito, 5% crédito.
    - Sindicato Químico (STIQ): 20% OFF efectivo, 15% débito, 5% crédito.
    - Círculo Católico / Hosp. Evangélico: 15% OFF efectivo.
    - Ferrocarril Norte / Liga MVD / Gimnasios: 10% a 15% OFF.
    - BPS: Tramitamos el 100% del subsidio oficial de lentes de receta.
 
-5. MARCAS Y PRODUCTOS:
+6. MARCAS Y PRODUCTOS:
    - Más de 50 marcas (Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales).
    - Cristales monofocales (~3 días hábiles) y Multifocales Digitales (~5 días hábiles).
    - 60 días de garantía de adaptación en multifocales.
    - Pago: 12 CUOTAS SIN RECARGO con todas las tarjetas de crédito.
 
-6. HORARIOS Y UBICACIÓN:
+7. HORARIOS Y UBICACIÓN:
    - Av. Millán 4494 (Montevideo). Lunes a Viernes 09:00 a 19:00 hs, Sábados 09:00 a 14:00 hs.
 
-7. TRASPASO HUMANO A NICO / STAFF:
+8. TRASPASO HUMANO A NICO / STAFF:
    - Si piden hablar con una persona o stock específico: "¡Con gusto! Te conecto con Nico y el equipo en el local. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
-// Detector Inteligente de Fechas
+// Detector Inteligente de Fechas / Turnos
 function isBookingConfirmation(msg) {
   const m = msg.toLowerCase();
-  const dateWords = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado", "mañana", "hoy", "hs", "hora", "horas", ":00", "am", "pm", "tarde"];
-  const actionWords = ["agendar", "turno", "reserva", "quiero", "voy", "puedo", "confirmo", "paso"];
+  const dateWords = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado", "mañana", "hoy", "tarde", "mediodia", "mediodía"];
+  const actionWords = ["agendar", "turno", "reserva", "quiero", "voy", "puedo", "confirmo", "paso", "preferis", "prefiero"];
   
-  return dateWords.some(w => m.includes(w)) && actionWords.some(w => m.includes(w));
+  return dateWords.some(w => m.includes(w)) || actionWords.some(w => m.includes(w));
 }
 
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase() : "";
+
+  // Agendamiento general o solicitud de turno
+  if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
+    return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
+      "¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?";
+  }
 
   // Solicitud de Más Información
   if (msg.includes("info") || msg.includes("informacion") || msg.includes("asesor") || msg.includes("consulta") || msg.includes("detalles") || msg.includes("mas info") || msg.includes("buenas") || msg.includes("hola")) {
@@ -80,16 +93,10 @@ function getSmartResponse(userMessage) {
     return "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto con el beneficio de tu convenio.";
   }
 
-  // Agendamiento con fecha/hora
+  // Confirmación de Día/Turno (Mañana o Tarde)
   if (isBookingConfirmation(msg)) {
     return "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de **Av. Millán 4494** (Montevideo). 🩺\n\n" +
       "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
-  }
-
-  // Agendamiento general
-  if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
-    return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
-      "¿Qué día y horario te queda más cómodo esta semana (Lun a Vie 9-19 hs, Sáb 9-14 hs) para reservarte el turno?";
   }
 
   // Marcas
@@ -273,7 +280,6 @@ async function handleWebhook(req, res) {
   const direction = req.body.direction || req.body.type || "";
   const userId = req.body.userId || req.body.user_id;
 
-  // Detección dinámica del canal (WhatsApp, Instagram ('IG'), Facebook ('FB'))
   let channelType = 'WhatsApp';
   const rawChannel = (req.body.channel || req.body.message_type || req.body.type || req.body.provider || "").toLowerCase();
   
