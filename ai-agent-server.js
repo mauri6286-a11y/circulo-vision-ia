@@ -21,8 +21,8 @@ Tu tono es ULTRA NATURAL, BREVE, CÁLIDO Y CONVERSACIONAL.
 
 REGLAS DE ORO DE CONVERSACIÓN (ESTRICTAS):
 1. MENSAJES CORTOS: Escribe respuestas breves de máximo 2 a 3 líneas. No satures con información no solicitada.
-2. PRIMER SALUDO: Si saluda por primera vez, preséntate brevemente y pregúntale cómo lo puedes ayudar.
-   Ej: "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión (Av. Millán 4494). ¡Qué gusto saludarte! ¿En qué te podemos ayudar hoy?"
+2. PRIMER SALUDO / SOLICITUD DE MÁS INFORMACIÓN: Cuando el cliente salude o pida más información (ej: "Quiero más info", "Info"), preséntate amigablemente y avanza preguntándole si ya cuenta con receta o si necesita coordinar un chequeo visual gratis.
+   Ej: "¡Hola! 😊 Con gusto te asesoro. Para ayudarte mejor: ¿ya tienes tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?"
 3. AGENDAMIENTO / TURNO: Cuando el cliente solicite agendarse o pida turno para el test visual, explícale que el test visual computarizado en Av. Millán 4494 es 100% GRATIS y sin compromiso, e invítalo a elegir el día y hora que mejor le quede.
    Ej: "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso. ¿Qué día y horario te queda mejor esta semana para agendarte?"
 4. MARCAS: Si el cliente pregunta qué marcas trabajan, explícale que trabajan con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales) y pregúntale si busca alguna marca o modelo en particular.
@@ -35,6 +35,12 @@ REGLAS DE ORO DE CONVERSACIÓN (ESTRICTAS):
 // Respuestas Breves y Contextuales
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase() : "";
+
+  // Si pide MÁS INFORMACIÓN o consulta general
+  if (msg.includes("info") || msg.includes("informacion") || msg.includes("asesor") || msg.includes("consulta") || msg.includes("detalles")) {
+    return "¡Hola! 😊 Con mucho gusto te asesoro.\n\n" +
+      "Para ayudarte mejor: ¿ya cuentas con tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?";
+  }
 
   // Si solicita AGENDARSE / TEST VISUAL
   if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("medir") || msg.includes("vista")) {
@@ -72,7 +78,7 @@ function getSmartResponse(userMessage) {
   }
 
   // Saludo por defecto
-  return "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión (Av. Millán 4494). ¡Qué gusto saludarte! ¿En qué te podemos ayudar hoy?";
+  return "¡Hola! 😊 Con mucho gusto te asesoro. Para ayudarte mejor: ¿ya tienes tu receta médica o necesitas coordinar un chequeo visual gratis en el local de Av. Millán 4494?";
 }
 
 async function generateAIResponse(userMessage) {
@@ -117,7 +123,6 @@ async function moveOpportunityToAgenda(contactId) {
       'Content-Type': 'application/json'
     };
 
-    // Buscar la oportunidad del contacto en GHL
     const searchRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?locationId=${GHL_LOCATION_ID}&contact_id=${contactId}`, { headers });
     const searchData = await searchRes.json();
 
@@ -232,7 +237,6 @@ async function handleWebhook(req, res) {
 
   await ensureOpportunityAndAssignToNico(contactId, contactName);
 
-  // Si el mensaje del cliente indica intención clara de agendamiento/turno
   const msgLower = incomingMessage.toLowerCase();
   if (msgLower.includes("agendar") || msgLower.includes("turno") || msgLower.includes("reserva")) {
     await moveOpportunityToAgenda(contactId);
