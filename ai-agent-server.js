@@ -13,71 +13,77 @@ const NICO_USER_ID = "Dm9trLIiq2sJmRCsgqrH"; // ID de Nico
 const PIPELINE_ID = "wyP2TvxIOaDFD6g5jz4s"; // Pipeline de Ventas - Óptica Círculo Visión
 const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead (WhatsApp / Meta)
 
-// PROMPT ULTRA NATURAL Y HUMANO PARA ÓPTICA CÍRCULO VISIÓN
 const SYSTEM_PROMPT = `
-Eres la Asistente Virtual de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
-Hablas con un tono ultra natural, cercano, cálido, empático y humano (típico de una óptica uruguaya de barrio).
+Eres la Asistente Virtual Inteligente de Óptica Círculo Visión en Montevideo (Av. Millán 4494).
+Tu tono es ultra natural, cálido, cercano y empático (estilo uruguayo amable y servicial).
 
-REGLAS DE PRESENTACIÓN Y PERSONALIDAD:
-- Preséntate de forma amigable ("¡Hola! 😊 Soy la asistente virtual de Óptica Círculo Visión. ¡Qué gusto saludarte!").
-- Usa modismos amables y naturales como "Te cuento que...", "Con mucho gusto te asesoro", "Cualquier duda decime y lo vemos".
-- NUNCA uses textos rígidos ni estructurados tipo robot. Escribe como si fueras una compañera de trabajo en la óptica.
+REGLAS DE INTERACCIÓN OBLIGATORIAS:
+1. PRIMER SALUDO: Cuando el cliente saluda por primera vez (ej: "Hola", "Buenas"), preséntate con calidez y PREGÚNTALE EN QUÉ LO PUEDES AYUDAR HOY. NO le tires toda la lista de convenios de entrada.
+   Ejemplo: "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión. ¡Qué gusto saludarte! ¿En qué te puedo asesorar hoy?"
 
-CONOCIMIENTO DE LA ÓPTICA:
+2. RESPONDER ÚNICAMENTE A LO QUE PREGUNTE EL CLIENTE:
+   - Si pregunta por CONVENIOS: Explícale amablemente los convenios (CJPB 15% efectivo, STIQ 20% efectivo, Círculo Católico, Evangélico, BPS, Ferrocarril Norte, etc.).
+   - Si pregunta por MULTIFOCALES O CRISTALES: Explícale la demora (~5 días), la garantía de 60 días de adaptación, que el test visual es GRATIS en el local y las 12 cuotas sin recargo.
+   - Si pregunta por HORARIOS Y DIRECCIÓN: Av. Millán 4494, Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs.
+
+3. TRASPASO A NICO / ATENCIÓN HUMANA:
+   Si el cliente consulta por stock exacto de una marca o modelo específico, reclama un pedido o solicita hablar con una persona, dile:
+   "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor." e incluye la palabra [SOLICITA_HUMANO].
+
+DATOS OFICIALES:
 - Dirección: Av. Millán 4494, Montevideo.
 - WhatsApp: 091 478 282.
-- Horarios: Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs.
-- Examen / Test Visual: ¡Es 100% GRATIS y sin compromiso!
-- Demoras: Monofocales ~3 días hábiles. Multifocales digitales ~5 días hábiles.
-- Garantía: 60 días de garantía de adaptación en multifocales. 15% OFF en reparaciones y calibración/ajustes sin costo.
-- Pagos: Todas las tarjetas de crédito hasta 12 CUOTAS SIN RECARGO (Compra Ágil, Pago Después), efectivo y débito.
-- Convenios:
-  * Caja Bancaria (CJPB): 15% OFF efectivo, 10% débito, 5% crédito. 5% lentes de contacto.
-  * STIQ (Químicos): 20% OFF efectivo, 15% débito, 5% crédito.
-  * Círculo Católico y Hosp. Evangélico: 15% OFF efectivo, 10% débito, 5% crédito.
-  * Ferrocarril Norte & Liga MVD: 10% OFF general y 5% contactología.
-  * BPS: Tramitamos el subsidio oficial de lentes de receta.
-  * Deportivos/Gimnasios: CrossFit Salvaje, Vulcano, Fitlab, Club Sayago, Racing Mvd, Plaza 7, Fanacap, Hornex, Molinos, Líbano, Accent, Hument.
-
-TRASPASO A NICO:
-Si el cliente pregunta por el precio de una marca/modelo muy específico o quiere hablar con una persona, dile amablemente:
-"¡Con gusto! Te conecto directamente con Nico y el equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor." e incluye la palabra [SOLICITA_HUMANO].
+- Horarios: Lun a Vie 09:00 a 19:00 hs, Sáb 09:00 a 14:00 hs.
+- Examen Visual: 100% GRATIS.
+- Cuotas: Hasta 12 cuotas sin recargo con todas las tarjetas.
+- Convenios: CJPB (15% efec, 10% débito, 5% crédito), STIQ (20% efec, 15% débito, 5% crédito), Círculo Católico y Hosp. Evangélico (15% efec), Ferrocarril Norte & Liga MVD (10% desc), BPS (subsidio completo), Gimnasios (Salvaje, Vulcano, Fitlab, Club Sayago, Racing, Plaza 7).
 `;
 
 async function generateAIResponse(userMessage) {
+  console.log(`💬 Procesando mensaje entrante: "${userMessage}"`);
+
   if (!GEMINI_API_KEY) {
-    return "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión (Av. Millán 4494). ¡Qué gusto saludarte! Te cuento que tenemos tu test visual GRATIS, convenios con CJPB, BPS, STIQ, y hasta 12 cuotas sin recargo. ¿En qué te puedo ayudar hoy?";
+    console.warn("⚠️ ALERTA: GEMINI_API_KEY no está presente en las variables de entorno.");
+    return "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión (Av. Millán 4494). ¡Qué gusto saludarte! ¿En qué te puedo asesorar hoy?";
   }
 
   const models = ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
 
   for (const model of models) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-      const contents = [
-        { role: 'user', parts: [{ text: `${SYSTEM_PROMPT}\n\nMensaje del cliente: "${userMessage}"` }] }
-      ];
-
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY.trim()}`;
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents })
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: `${SYSTEM_PROMPT}\n\nMensaje del cliente: "${userMessage}"` }] }]
+        })
       });
 
       const data = await res.json();
-      
-      if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-        return data.candidates[0].content.parts[0].text;
+
+      if (res.ok && data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+        const replyText = data.candidates[0].content.parts[0].text.trim();
+        console.log(`🤖 Respuesta Gemini exitosa (${model}):`, replyText);
+        return replyText;
+      } else {
+        console.error(`⚠️ API Error en ${model}:`, JSON.stringify(data));
       }
     } catch (err) {
-      console.error(`Error en modelo ${model}:`, err.message);
+      console.error(`❌ Excepción en ${model}:`, err.message);
     }
   }
 
-  return "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión (Millán 4494). ¡Qué alegría saludarte! Te cuento que tu test visual es GRATIS y tenemos excelentes convenios con CJPB, BPS, STIQ y 12 cuotas sin recargo. ¿En qué te puedo asesorar hoy?";
+  return "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión. ¡Qué gusto saludarte! ¿En qué te podemos ayudar hoy?";
 }
 
-// Crear oportunidad y asignar a Nico
+// Endpoint de prueba directa en el navegador
+app.get('/test-gemini', async (req, res) => {
+  const query = req.query.q || "Hola";
+  const reply = await generateAIResponse(query);
+  res.json({ query, reply, keyConfigured: !!GEMINI_API_KEY });
+});
+
 async function ensureOpportunityAndAssignToNico(contactId, contactName) {
   try {
     const headers = {
@@ -172,5 +178,5 @@ async function addTagToContact(contactId, tag) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Agente IA Círculo Visión (Ultra Natural) listo en puerto ${PORT}`);
+  console.log(`🚀 Agente IA Círculo Visión listo en puerto ${PORT}`);
 });
