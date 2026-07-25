@@ -18,49 +18,62 @@ const DEFAULT_CALENDAR_ID = "r7BEH6BpgfYJ1xJ47G99"; // Calendario Óptica Círcu
 
 const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
-Tu estilo es ULTRA NATURAL, CÁLIDO, URUGUAYO Y ALTAMENTE COMPRENSIVO.
+Tu estilo es ULTRA NATURAL, CÁLIDO, URUGUAYO Y DIRECTO.
 
-REGLAS DE INTERPRETACIÓN INTELIGENTE (ESTRICTAS):
+REGLA DE ORO SOBRE CONVENIOS:
+- NUNCA MENCIONES CONVENIOS NI MUTUALISTAS (CJPB, STIQ, BPS, etc.) A MENOS QUE EL CLIENTE PREGUNTE EXPLÍCITAMENTE SI TIENEN CONVENIO O DESCUENTOS POR MUTUALISTA/SINDICATO.
 
-1. RESPUESTA A CONSULTAS ESPECÍFICAS DE PRODUCTO O COTIZACIÓN (ej: Varilux, Physio, Zeiss, cristales específicos, cuánto sale):
-   - MENCIONA DIRECTAMENTE EL PRODUCTO CONSULTADO. Demuestra que entendiste perfectamente la pregunta.
-   - Explica que el precio exacto depende de la receta/graduación (tipo de filtro, antireflejante, fotocromático).
-   - Recuerda los convenios (CJPB 15% efec, STIQ 20% efec, BPS) y las 12 cuotas sin recargo.
-   - Ofrécele enviar foto de la receta o derivar a Nico para pasarle la cotización exacta en el acto.
-   - Ejemplo: "¡Hola! 😊 Los multifocales Varilux Physio son una opción de alta gama excelente. El costo exacto se calcula según la graduación de tu receta y los filtros elegidos (contamos con convenios como CJPB, STIQ, BPS y hasta 12 cuotas sin recargo). ¿Tienes la foto de tu receta a mano así te pasamos la cotización exacta o te conecto con Nico?"
+MANUAL DE RESPUESTAS CONVERSACIONALES:
 
-2. SI EL CLIENTE RESPONDE SOLO EL TURNO (ej: "Tarde" o "Mañana"):
-   - Pregúntale qué día le queda mejor.
-   - Ejemplo: "¡Genial! 😊 ¿Y qué día de la semana te queda mejor pasar (Lunes a Viernes de 9 a 19 hs o Sábados de 9 a 14 hs) así te reservamos el lugar en el turno tarde?"
+1. RESPUESTA A CONSULTAS DE PRODUCTOS O COTIZACIÓN (ej: Varilux, Physio, Zeiss, cristales, precio):
+   - Menciona directamente el producto consultado.
+   - Explica que el costo exacto varía según la receta/graduación (filtros antireflejantes o fotocromáticos) y que aceptan 12 cuotas sin recargo.
+   - Pide la foto de la receta o te ofrece conectar con Nico para cotizar en el acto.
+   - Ejemplo: "¡Hola! 😊 Los multifocales Varilux Physio son una opción de alta gama excelente. El costo exacto se calcula según la graduación de tu receta y los filtros elegidos (contamos con hasta 12 cuotas sin recargo). ¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o te conecto con Nico?"
 
-3. SI EL CLIENTE RESPONDE UN DÍA DE LA SEMANA (ej: "Miércoles", "Jueves", "Viernes", "Sábado", "Lunes", "Martes"):
-   - CONFIRMA EL AGENDAMIENTO Y FINALIZA CÁLIDAMENTE:
-     "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de Av. Millán 4494 (Montevideo). 🩺 Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!"
+2. SI EL CLIENTE RESPONDE QUE TIENE RECETA:
+   - "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto."
 
-4. SALUDOS O MÁS INFORMACIÓN GENERAL:
-   - Responde amablemente presentando los beneficios (Test gratis, convenios, 12 cuotas) y cualifica si tiene receta o necesita chequeo gratis.
+3. SOLICITUD DE MÁS INFORMACIÓN O SALUDO INICIAL:
+   - "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual computarizado 100% GRATIS y hasta 12 cuotas sin recargo. 👓
 
-5. TRASPASO HUMANO A NICO / STAFF:
-   - Si piden hablar con alguien o cotización técnica compleja: "¡Con gusto! Te conecto directamente con Nico y el equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
+     Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en el local?"
+
+4. SOLICITUD DE AGENDAMIENTO / TURNO:
+   - "¡Hola! 😊 Hacemos test visual computarizado en Av. Millán 4494 y es 100% GRATIS y sin compromiso. 🩺
+
+     ¿Qué día de esta semana te queda mejor y si preferís de mañana o de tarde, así te coordinamos el turno?"
+
+5. SI EL CLIENTE RESPONDE SOLO EL TURNO (ej: "Tarde" o "Mañana"):
+   - Pregúntale el día que le queda mejor.
+
+6. SI EL CLIENTE RESPONDE UN DÍA DE LA SEMANA (ej: "Miércoles", "Jueves", etc.):
+   - CONFIRMA EL AGENDAMIENTO Y FINALIZA CÁLIDAMENTE.
+
+7. SOLO SI EL CLIENTE PREGUNTA EXPLÍCITAMENTE POR CONVENIOS:
+   - CJPB (Caja Bancaria): 15% OFF efectivo. STIQ: 20% OFF efectivo. Círculo Católico / Evangélico: 15% OFF efectivo. BPS: Subsidio oficial.
+
+8. TRASPASO HUMANO A NICO / STAFF:
+   - Si piden hablar con alguien o cotización técnica compleja: "¡Con gusto! Te conecto directamente con Nico y el equipo en el local. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase().trim() : "";
 
-  // 1. Detección PRIORITARIA de Marcas/Líneas Específicas (Varilux, Physio, Zeiss, etc.) y Cotizaciones
+  // 1. Marcas Específicas / Cotizaciones de Cristales
   if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor")) {
     return "¡Hola! 😊 Los multifocales Varilux Physio son una excelente opción de alta gama en cristales digitales. 👓\n\n" +
-      "El precio exacto depende de la graduación específica de tu receta (y si requieres filtros antireflejantes o fotocromáticos). Contamos con convenios (CJPB, STIQ, BPS) y hasta 12 cuotas sin recargo.\n\n" +
+      "El precio exacto depende de la graduación específica de tu receta (y si requieres filtros antireflejantes o fotocromáticos). Aceptamos todas las tarjetas hasta en 12 cuotas sin recargo.\n\n" +
       "¿Tienes la foto de tu receta a mano así te pasamos la cotización exacta o te conecto directamente con Nico para asesorarte?";
   }
 
   // 2. Respuesta a Turno Solo ("tarde" o "mañana")
   if (msg === "tarde" || msg === "de tarde" || msg === "en la tarde") {
-    return "¡Genial! 😊 ¿Y qué día de la semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la tarde?";
+    return "¡Genial! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la tarde?";
   }
 
   if (msg === "mañana" || msg === "manana" || msg === "de mañana" || msg === "de manana" || msg === "en la mañana") {
-    return "¡Bárbaro! 😊 ¿Y qué día de la semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la mañana?";
+    return "¡Bárbaro! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la mañana?";
   }
 
   // 3. Respuesta a Día de la Semana ("Miércoles", "Jueves", etc.)
@@ -70,43 +83,49 @@ function getSmartResponse(userMessage) {
       "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
   }
 
-  // 4. Preguntas sobre Cristales / Multifocales / Precios Generales
+  // 4. Si el cliente dice que TIENE RECETA
+  if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("tengo examen")) {
+    return "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto.";
+  }
+
+  // 5. Preguntas sobre Cristales / Multifocales / Precios Generales
   if (msg.includes("multifocal") || msg.includes("cristal") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("precio") || msg.includes("cotizacion") || msg.includes("cuota") || msg.includes("tarjeta")) {
     return "¡Hola! 😊 Nuestros multifocales digitales cuentan con 60 días de garantía de adaptación y demoran solo 5 días hábiles. 👓\n\n" +
-      "El precio varía según la graduación de tu receta (aceptamos 12 cuotas sin recargo y convenios CJPB, STIQ, BPS). ¿Tienes la foto de tu receta a mano así te cotizamos o te gustaría agendar un chequeo gratis?";
+      "El precio varía según la graduación de tu receta (aceptamos 12 cuotas sin recargo). ¿Tienes la foto de tu receta a mano así te cotizamos o te gustaría agendar un chequeo gratis?";
   }
 
-  // 5. Agendamiento / Turnos
-  if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
-    return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
-      "¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?";
-  }
-
-  // 6. Marcas
-  if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
-    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
-      "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
-  }
-
-  // 7. Convenios
+  // 6. SOLO si el cliente pregunta EXPLÍCITAMENTE por convenios o descuentos de mutualista
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
       "¿A qué convenio o mutualista perteneces tú así te paso el descuento exacto?";
   }
 
-  // 8. Horarios / Ubicación
+  // 7. Agendamiento / Turnos
+  if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
+    return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
+      "¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?";
+  }
+
+  // 8. Marcas
+  if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
+    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
+      "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
+  }
+
+  // 9. Horarios / Ubicación
   if (msg.includes("horario") || msg.includes("donde") || msg.includes("direccion") || msg.includes("abierto") || msg.includes("ubicacion") || msg.includes("millan")) {
     return "Estamos ubicados en **Av. Millán 4494** (Montevideo). 📍\n\n" +
       "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
-  // 9. Traspaso Humano
+  // 10. Traspaso Humano
   if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // 10. Información General / Saludo
-  return "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS, convenios (CJPB, STIQ, BPS) y 12 cuotas sin recargo. ¿Ya cuentas con tu receta médica o prefieres coordinar un chequeo gratis?";
+  // 11. Información General / Saludo
+  return "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS y 12 cuotas sin recargo. 👓\n\n" +
+    "Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en nuestro local?";
 }
 
 async function generateAIResponse(userMessage) {
