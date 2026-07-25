@@ -14,102 +14,96 @@ const NICO_USER_ID = "Dm9trLIiq2sJmRCsgqrH"; // ID de Nico
 const PIPELINE_ID = "wyP2TvxIOaDFD6g5jz4s"; // Pipeline de Ventas - Óptica Círculo Visión
 const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead
 const STAGE_AGENDA = "1ee9cfbd-9b2f-4bdb-a558-89fb668b32d0"; // 6. Agenda
-const DEFAULT_CALENDAR_ID = "r7BEH6BpgfYJ1xJ47G99"; // Calendario de Agendamiento de Óptica Círculo Visión
+const DEFAULT_CALENDAR_ID = "r7BEH6BpgfYJ1xJ47G99"; // Calendario Óptica Círculo Visión
 
 const SYSTEM_PROMPT = `
-Eres la Asistente Virtual Inteligente y Ejecutiva de Ventas de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
-Tu objetivo es brindar una atención humana, profesional, cálida y AGENDAR AL CLIENTE de forma proactiva y sin fricción.
+Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
+Atiendes clientes de WhatsApp, Instagram y Facebook. Tu estilo es 100% uruguayo, empático, profesional y natural.
 
-REGLAS PROACTIVAS DE ATENCIÓN Y AGENDAMIENTO:
+CONOCIMIENTO COMERCIAL Y MANUAL DE RESPUESTA:
 
-1. SI EL CLIENTE DA UNA FECHA Y/O HORA (ej: "Quiero el jueves a las 15 hs", "Mañana a las 10", "El sábado de mañana"):
-   - CONFIRMA EL AGENDAMIENTO DE INMEDIATO CON ENTUSIASMO.
-   - Ejemplo: "¡Excelente! Quedas agendado/a para tu test visual GRATIS en nuestro local de Av. Millán 4494. Te esperamos con gusto en la sucursal. 🩺 ¡Muchas gracias!"
+1. SALUDO INICIAL Y SOLICITUD DE INFORMACIÓN:
+   - Sé breve (2 a 3 líneas).
+   - Preséntate amigablemente y avanza preguntándole si cuenta con receta médica o si necesita coordinar un chequeo visual gratis.
+   - Ejemplo: "¡Hola! 😊 Con mucho gusto te asesoro. Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?"
 
-2. SI EL CLIENTE PIDE INFORMACIÓN O SALUDA:
-   - Responde de forma concisa (2 a 3 líneas), cálida y fluida.
-   - Pregúntale proactivamente si ya cuenta con receta médica o si prefiere coordinar un chequeo visual gratis en el local.
+2. AGENDAMIENTO AUTÓNOMO DE TEST VISUAL:
+   - El test visual computarizado en Av. Millán 4494 es 100% GRATIS y sin compromiso.
+   - Si el cliente da un día o hora (ej: "jueves a las 15", "mañana de tarde", "el sábado a las 10"):
+     Confirma con entusiasmo: "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de Av. Millán 4494. Te esperamos con gusto en la sucursal. 🩺 ¡Muchas gracias!"
 
-3. CONVENIOS Y DESCUENTOS:
-   - CJPB (Caja Bancaria): 15% efectivo, 10% débito, 5% crédito.
-   - STIQ (Sindicato Químico): 20% efectivo, 15% débito, 5% crédito.
-   - Círculo Católico / Hosp. Evangélico: 15% efectivo.
-   - BPS: Tramitación completa de subsidio oficial de lentes.
-   - Gimnasios (Salvaje, Vulcano, Fitlab, Sayago, Racing, Plaza 7): Beneficios especiales.
+3. CONVENIOS Y SUBSIDIOS COMERCIALES:
+   - Caja Bancaria (CJPB): 15% OFF efectivo, 10% débito, 5% crédito.
+   - Sindicato Químico (STIQ): 20% OFF efectivo, 15% débito, 5% crédito.
+   - Círculo Católico / Hosp. Evangélico: 15% OFF efectivo.
+   - Ferrocarril Norte / Liga MVD / Gimnasios (Salvaje, Vulcano, Fitlab, Sayago, Racing, Plaza 7): 10% a 15% OFF.
+   - BPS: Tramitamos el 100% del subsidio oficial de lentes de receta.
 
-4. PRODUCTOS Y GARANTÍAS:
-   - Más de 50 marcas de armazones (Neréa, Oahu, Bric à Brac, GX7 e internacionales).
+4. MARCAS Y PRODUCTOS:
+   - Más de 50 marcas de primer nivel (Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales). Pregunta si busca algún modelo particular.
    - Cristales monofocales (~3 días hábiles) y Multifocales Digitales (~5 días hábiles).
    - 60 días de garantía de adaptación en multifocales.
-   - Hasta 12 CUOTAS SIN RECARGO con todas las tarjetas.
+   - Pago: 12 CUOTAS SIN RECARGO con todas las tarjetas de crédito.
 
-5. ATENCIÓN HUMANA (NICO / STAFF):
+5. HORARIOS Y UBICACIÓN:
+   - Dirección: Av. Millán 4494 (Montevideo).
+   - Horarios: Lunes a Viernes de 09:00 a 19:00 hs, Sábados de 09:00 a 14:00 hs.
+
+6. TRASPASO HUMANO A NICO / STAFF:
    - Si piden hablar con una persona o stock específico: "¡Con gusto! Te conecto con Nico y el equipo en el local. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
-// Detector Inteligente de Intención de Agendamiento y Fechas
+// Detector Inteligente de Fechas
 function isBookingConfirmation(msg) {
   const m = msg.toLowerCase();
   const dateWords = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado", "mañana", "hoy", "hs", "hora", "horas", ":00", "am", "pm", "tarde"];
   const actionWords = ["agendar", "turno", "reserva", "quiero", "voy", "puedo", "confirmo", "paso"];
   
-  const hasDate = dateWords.some(w => m.includes(w));
-  const hasAction = actionWords.some(w => m.includes(w));
-  
-  return hasDate && hasAction;
+  return dateWords.some(w => m.includes(w)) && actionWords.some(w => m.includes(w));
 }
 
-// Fallback Inteligente Proactivo
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase() : "";
 
-  // Agendamiento con día/hora indicado por el cliente
   if (isBookingConfirmation(msg)) {
     return "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de **Av. Millán 4494** (Montevideo). 🩺\n\n" +
-      "Te esperamos con gusto en nuestro local. ¡Cualquier duda estamos a las órdenes!";
+      "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
   }
 
-  // Solicitud general de Agendamiento
   if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
     return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
-      "¿Qué día y horario te queda mejor esta semana para reservarte el turno?";
+      "¿Qué día y horario te queda más cómodo esta semana para reservarte el turno?";
   }
 
-  // Marcas
   if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
     return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
-      "¿Buscas alguna marca o modelo en particular así te confirmo disponible?";
+      "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
   }
 
-  // Convenios
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
-      "¿A qué convenio o mutualista perteneces tú así te paso el beneficio exacto?";
+      "¿A qué convenio o mutualista perteneces tú así te paso el descuento exacto?";
   }
 
-  // Multifocales / Cristales / Precios
   if (msg.includes("multifocal") || msg.includes("cristal") || msg.includes("demora") || msg.includes("tiempo") || msg.includes("garantia") || msg.includes("precio") || msg.includes("cuota") || msg.includes("tarjeta") || msg.includes("lente")) {
     return "Nuestros multifocales digitales demoran solo 5 días hábiles y cuentan con 60 días de garantía de adaptación. 👓\n\n" +
       "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo. ¿Te gustaría coordinar una visita al local?";
   }
 
-  // Horarios / Ubicación
   if (msg.includes("horario") || msg.includes("donde") || msg.includes("direccion") || msg.includes("abierto") || msg.includes("ubicacion") || msg.includes("millan")) {
     return "Estamos ubicados en **Av. Millán 4494** (Montevideo). 📍\n\n" +
       "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
-  // Traspaso Humano
   if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // Información general
   return "¡Hola! 😊 Con mucho gusto te asesoro. Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o necesitas coordinar un chequeo visual gratis en nuestro local de Av. Millán 4494?";
 }
 
 async function generateAIResponse(userMessage) {
-  console.log(`💬 Procesando mensaje entrante: "${userMessage}"`);
+  console.log(`💬 Procesando mensaje omnicanal: "${userMessage}"`);
 
   if (GEMINI_API_KEY && GEMINI_API_KEY.length > 20) {
     const models = ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
@@ -141,7 +135,6 @@ async function generateAIResponse(userMessage) {
   return getSmartResponse(userMessage);
 }
 
-// Mover automáticamente la tarjeta en el Pipeline de GHL a la etapa 'Agenda' y agendar cita
 async function processAutoBooking(contactId, userMessage) {
   try {
     const headers = {
@@ -150,7 +143,6 @@ async function processAutoBooking(contactId, userMessage) {
       'Content-Type': 'application/json'
     };
 
-    // 1. Mover la oportunidad en el Pipeline a la etapa 'Agenda'
     const searchRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?locationId=${GHL_LOCATION_ID}&contact_id=${contactId}`, { headers });
     const searchData = await searchRes.json();
     const opportunity = searchData.opportunities?.[0];
@@ -163,15 +155,13 @@ async function processAutoBooking(contactId, userMessage) {
           pipelineStageId: STAGE_AGENDA
         })
       });
-      console.log(`📅 Oportunidad movida automáticamente a la etapa 'Agenda' para el contacto ${contactId}`);
+      console.log(`📅 Oportunidad movida automáticamente a 'Agenda' para ${contactId}`);
     }
 
-    // 2. Etiquetar al contacto con 'Turno_Agendado'
     await addTagToContact(contactId, "Turno_Agendado");
 
-    // 3. Crear evento de agendamiento en el calendario de GHL
     const startTime = new Date();
-    startTime.setDate(startTime.getDate() + 1); // Agendamiento por defecto
+    startTime.setDate(startTime.getDate() + 1);
     startTime.setHours(15, 0, 0, 0);
     const endTime = new Date(startTime.getTime() + 30 * 60000);
 
@@ -188,9 +178,8 @@ async function processAutoBooking(contactId, userMessage) {
         appointmentStatus: "confirmed"
       })
     });
-    console.log(`✅ Cita creada en el Calendario de GHL para ${contactId}`);
   } catch (e) {
-    console.error("Error en proceso de agendamiento automático:", e.message);
+    console.error("Error en proceso de agendamiento:", e.message);
   }
 }
 
@@ -214,7 +203,7 @@ async function isIAHandledByHuman(contactId) {
     });
 
     if (isPaused) {
-      console.log(`⏸️ IA Pausada para ${contactId} (Etiquetas activas: ${tags.join(', ')})`);
+      console.log(`⏸️ IA Pausada para ${contactId} (Etiquetas: ${tags.join(', ')})`);
     }
     return isPaused;
   } catch (e) {
@@ -262,6 +251,7 @@ async function handleWebhook(req, res) {
   const direction = req.body.direction || req.body.type || "";
   const userId = req.body.userId || req.body.user_id;
 
+  // Detección dinámica del canal (WhatsApp, Instagram, FB Messenger)
   let channelType = 'WhatsApp';
   const rawChannel = (req.body.channel || req.body.message_type || req.body.type || req.body.provider || "").toLowerCase();
   
@@ -296,7 +286,6 @@ async function handleWebhook(req, res) {
 
   await ensureOpportunityAndAssignToNico(contactId, contactName);
 
-  // Procesar agendamiento automático si el cliente proporciona fecha/hora o solicita turno
   const msgLower = incomingMessage.toLowerCase();
   if (isBookingConfirmation(msgLower) || msgLower.includes("agendar") || msgLower.includes("turno")) {
     await processAutoBooking(contactId, incomingMessage);
@@ -367,5 +356,5 @@ async function addTagToContact(contactId, tag) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Agente IA Círculo Visión (Agendador Autónomo) listo en puerto ${PORT}`);
+  console.log(`🚀 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT}`);
 });
