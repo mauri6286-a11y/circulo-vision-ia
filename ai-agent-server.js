@@ -18,38 +18,45 @@ const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
 Tu tono es ULTRA NATURAL, BREVE, CÁLIDO Y CONVERSACIONAL.
 
-REGLAS DE ORO DE CONVERSACIÓN (IMPORTANTE):
-1. NUNCA abraces al cliente con textos largos ni listas gigantes de información. Escribe mensajes cortos y directos (máximo 2 a 3 líneas).
-2. SALUDO INICIAL: Si saluda por primera vez, preséntate brevemente y pregúntale cómo lo puedes ayudar.
+REGLAS DE ORO DE CONVERSACIÓN (ESTRICTAS):
+1. MENSAJES CORTOS: Escribe respuestas breves de máximo 2 a 3 líneas. No satures con información no solicitada.
+2. PRIMER SALUDO: Si saluda por primera vez, preséntate brevemente y pregúntale cómo lo puedes ayudar.
    Ej: "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión (Av. Millán 4494). ¡Qué gusto saludarte! ¿En qué te podemos ayudar hoy?"
-3. SI PREGUNTA POR CONVENIOS: No le tires todos los convenios juntos. Pregúntale cuál es su convenio o mutualista para darle el beneficio exacto.
-   Ej: "¡Con gusto! Tenemos convenios con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes. ¿A qué convenio o mutualista perteneces tú así te paso el beneficio exacto?"
-4. SI PREGUNTA POR MULTIFOCALES / CRISTALES:
-   Ej: "Nuestros multifocales digitales cuentan con 60 días de garantía de adaptación y demoran solo 5 días hábiles. Además tu test visual en Millán 4494 es GRATIS. ¿Te gustaría agendar una visita?"
-5. SI CONSULTA POR STOCK O HABLAR CON NICO:
-   Ej: "¡Con gusto! Te conecto directamente con Nico y el equipo en el local para asesorarte. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
+3. CONVENIOS: Si pregunta por convenios, pregúntale a qué mutualista o sindicato pertenece para darle el dato exacto.
+   Ej: "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes. ¿A qué convenio o mutualista perteneces tú así te paso el beneficio exacto?"
+4. TEST VISUAL: Menciona que el test visual computarizado es 100% GRATIS ÚNICAMENTE cuando el cliente pregunte si hacen examen de vista o cuánto cuesta la revisión.
+   Ej: "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso. ¿Te gustaría coordinar un turno?"
+5. MULTIFOCALES / CRISTALES: Responde de forma concisa sobre demoras (5 días), garantía (60 días de adaptación) y 12 cuotas sin recargo.
+6. TRASPASO A NICO: Si consulta por stock de una marca/modelo específico o pide hablar con una persona, dile:
+   "¡Con gusto! Te conecto directamente con Nico y el equipo en el local para asesorarte. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
-// Respuestas Breves, Interactivas y Conversacionales
+// Respuestas Breves y Contextuales
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase() : "";
 
-  // Si pregunta por convenios
+  // Si pregunta específicamente por el TEST / EXAMEN VISUAL
+  if (msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("medir") || msg.includes("vista") || msg.includes("oftalm")) {
+    return "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso.\n\n" +
+      "¿Te gustaría coordinar un turno para esta semana?";
+  }
+
+  // Si pregunta por CONVENIOS
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
       "¿A qué convenio, mutualista o sindicato perteneces tú así te paso el descuento exacto?";
   }
 
-  // Si pregunta por multifocales / cristales / precios
+  // Si pregunta por MULTIFOCALES / CRISTALES / PRECIOS
   if (msg.includes("multifocal") || msg.includes("cristal") || msg.includes("demora") || msg.includes("tiempo") || msg.includes("garantia") || msg.includes("precio") || msg.includes("cuota") || msg.includes("tarjeta") || msg.includes("lente")) {
-    return "Nuestros multifocales digitales demoran solo 5 días hábiles y tienen 60 días de garantía de adaptación. 👓\n\n" +
-      "Además, tu test visual en Av. Millán 4494 es GRATIS y aceptamos hasta 12 cuotas sin recargo. ¿Te gustaría agendar un turno para esta semana?";
+    return "Nuestros multifocales digitales demoran solo 5 días hábiles y cuentan con 60 días de garantía de adaptación. 👓\n\n" +
+      "Además, aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo. ¿Te gustaría coordinar una visita al local?";
   }
 
-  // Si pregunta por horarios o dirección
+  // Si pregunta por HORARIOS O DIRECCIÓN
   if (msg.includes("horario") || msg.includes("donde") || msg.includes("direccion") || msg.includes("abierto") || msg.includes("ubicacion") || msg.includes("millan") || msg.includes("como llego")) {
     return "Estamos ubicados en **Av. Millán 4494** (Montevideo). 📍\n\n" +
-      "Abrimos de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes para hacer tu test visual GRATIS!";
+      "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
   // Si pide hablar con Nico o atención humana
@@ -57,7 +64,7 @@ function getSmartResponse(userMessage) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // Saludo por defecto (Breve y natural)
+  // Saludo por defecto
   return "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión (Av. Millán 4494). ¡Qué gusto saludarte! ¿En qué te podemos ayudar hoy?";
 }
 
@@ -200,5 +207,5 @@ async function addTagToContact(contactId, tag) {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Agente IA Círculo Visión (Respuestas Cortas y Humanas) listo en puerto ${PORT}`);
+  console.log(`🚀 Agente IA Círculo Visión listo en puerto ${PORT}`);
 });
