@@ -4,6 +4,7 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const GHL_TOKEN = process.env.GHL_PRIVATE_TOKEN;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
@@ -19,7 +20,7 @@ Tu tono es ultra natural, cálido, cercano y empático (estilo uruguayo amable y
 
 REGLAS DE INTERACCIÓN OBLIGATORIAS:
 1. PRIMER SALUDO: Cuando el cliente saluda por primera vez (ej: "Hola", "Buenas"), preséntate amigablemente y PREGÚNTALE EN QUÉ LO PUEDES AYUDAR. No des la lista entera de convenios de entrada.
-2. RESPONDER ÚNICAMENTE A LO QUE PREGUNTA EL CLIENTE:
+2. RESPONDER A LO QUE PREGUNTA EL CLIENTE:
    - CONVENIOS: Explica CJPB (15% efec, 10% débito, 5% crédito), STIQ (20% efec, 15% débito, 5% crédito), Círculo Católico, Evangélico, Ferrocarril Norte, Liga MVD, BPS subsidio, y Gimnasios (Salvaje, Vulcano, Fitlab, Sayago, Racing, Plaza 7).
    - MULTIFOCALES / CRISTALES: Demora ~5 días hábiles, 60 días de garantía de adaptación, test visual 100% GRATIS y 12 cuotas sin recargo.
    - HORARIOS Y DIRECCIÓN: Av. Millán 4494, Lun a Vie 9 a 19 hs, Sáb 9 a 14 hs.
@@ -130,11 +131,10 @@ async function ensureOpportunityAndAssignToNico(contactId, contactName) {
   }
 }
 
-// Webhook flexible compatible con todas las variantes de GHL
-app.post('/webhook/ghl-message', async (req, res) => {
+// Función principal del Webhook
+async function handleWebhook(req, res) {
   console.log("📥 Webhook recibido de GHL:", JSON.stringify(req.body, null, 2));
 
-  // Extracción flexible de contactId y mensaje desde cualquier formato de GHL
   const contactId = req.body.contact_id || req.body.contactId || req.body.contact?.id || req.body.id;
   const incomingMessage = typeof req.body.message === 'string' ? req.body.message : (req.body.message?.body || req.body.body || req.body.text || req.body.customData?.message || "");
   
@@ -143,7 +143,7 @@ app.post('/webhook/ghl-message', async (req, res) => {
   const contactName = `${firstName} ${lastName}`.trim();
 
   if (!contactId) {
-    console.warn("⚠️ Webhook ignorado: No se pudo extraer contactId del cuerpo de la petición.");
+    console.warn("⚠️ Webhook recibido sin contactId. Respondiendo 200 OK.");
     return res.status(200).json({ status: "ignored", reason: "Falta contactId" });
   }
 
@@ -157,11 +157,19 @@ app.post('/webhook/ghl-message', async (req, res) => {
     const cleanReply = aiReply.replace("[SOLICITA_HUMANO]", "").trim();
     await sendGHLMessage(contactId, cleanReply);
     await addTagToContact(contactId, "Atencion_Humana");
-    return res.json({ status: "handoff_to_human" });
+    return res.json({ status: "handoff_to_human", reply: cleanReply });
   }
 
   await sendGHLMessage(contactId, aiReply);
   res.json({ status: "success", reply: aiReply });
+}
+
+// Aceptar peticiones POST tanto en / como en /webhook/ghl-message
+app.post('/webhook/ghl-message', handleWebhook);
+app.post('/', handleWebhook);
+
+app.get('/', (req, res) => {
+  res.send("🚀 Servidor de Agente IA Óptica Círculo Visión activo 24/7.");
 });
 
 async function sendGHLMessage(contactId, messageText) {
