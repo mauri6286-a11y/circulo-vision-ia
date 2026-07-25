@@ -26,15 +26,15 @@ REGLAS DE DIÁLOGO Y AGENDAMIENTO PRECISO:
    - Si el cliente solicita agendarse o pide turno:
      "¡Hola! 😊 Hacemos test visual computarizado en Av. Millán 4494 y es 100% GRATIS y sin compromiso. 🩺
 
-     ¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?"
+     ¿Qué día de esta semana te queda mejor y si preferís de mañana o de tarde, así te reservamos el turno?"
 
 2. SI EL CLIENTE RESPONDE SOLO EL TURNO (ej: "Tarde" o "Mañana"):
    - Pregúntale el día que le queda mejor.
-   - Ejemplo: "¡Genial! 😊 ¿Y qué día de la semana te queda mejor pasar (Lunes a Viernes de 9 a 19 hs o Sábados de 9 a 14 hs) así te reservamos el lugar en el turno tarde?"
+   - Ejemplo: "¡Genial! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes de 9 a 19 hs o Sábados de 9 a 14 hs) así te coordinamos la agenda?"
 
 3. SI EL CLIENTE RESPONDE UN DÍA DE LA SEMANA (ej: "Miércoles", "Jueves", "Viernes", "Sábado", "Lunes", "Martes"):
-   - CONFIRMA EL AGENDAMIENTO Y FINALIZA CÁLIDAMENTE:
-     "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de Av. Millán 4494 (Montevideo). 🩺 Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!"
+   - CONFIRMA EL AGENDAMIENTO PARA ESTA MISMA SEMANA Y FINALIZA CÁLIDAMENTE:
+     "¡Excelente! Quedas agendado/a para este próximo día en Av. Millán 4494 para tu test visual 100% GRATIS. 🩺 Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!"
 
 4. SOLICITUD DE MÁS INFORMACIÓN:
    - "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS, convenios (CJPB, STIQ, BPS) y 12 cuotas sin recargo. 👓
@@ -42,7 +42,7 @@ REGLAS DE DIÁLOGO Y AGENDAMIENTO PRECISO:
      Para orientarte mejor: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en el local?"
 
 5. CONVENIOS Y SUBSIDIOS:
-   - CJPB (Caja Bancaria): 15% OFF efectivo. STIQ: 20% OFF efectivo. Círculo Católico / Evangélico: 15% OFF efectivo. BPS: Subsidio oficial.
+   - Caja Bancaria (CJPB): 15% OFF efectivo. STIQ: 20% OFF efectivo. Círculo Católico / Evangélico: 15% OFF efectivo. BPS: Subsidio oficial.
 
 6. MARCAS Y PRODUCTOS:
    - Más de 50 marcas de armazones (Oahu, Bric à Brac, GX7 e internacionales). Cristales monofocales (3 días) y Multifocales Digitales (5 días) con 60 días de garantía. 12 cuotas sin recargo.
@@ -56,11 +56,11 @@ function getSmartResponse(userMessage) {
 
   // 1. Si el cliente respondió SOLO el turno ("tarde" o "mañana")
   if (msg === "tarde" || msg === "de tarde" || msg === "en la tarde") {
-    return "¡Genial! 😊 ¿Y qué día de la semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la tarde?";
+    return "¡Genial! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la tarde?";
   }
 
   if (msg === "mañana" || msg === "manana" || msg === "de mañana" || msg === "de manana" || msg === "en la mañana") {
-    return "¡Bárbaro! 😊 ¿Y qué día de la semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la mañana?";
+    return "¡Bárbaro! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la mañana?";
   }
 
   // 2. Si el cliente respondió un DÍA DE LA SEMANA (ej: "Miércoles", "Jueves", "Lunes", "Martes", "Viernes", "Sábado")
@@ -152,6 +152,7 @@ async function generateAIResponse(userMessage) {
   return getSmartResponse(userMessage);
 }
 
+// Mover Oportunidad en el Pipeline a 'Agenda' utilizando location_id con guion bajo
 async function processAutoBooking(contactId, userMessage) {
   try {
     const headers = {
@@ -160,23 +161,30 @@ async function processAutoBooking(contactId, userMessage) {
       'Content-Type': 'application/json'
     };
 
-    const searchRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?locationId=${GHL_LOCATION_ID}&contact_id=${contactId}`, { headers });
+    // 1. Buscar la oportunidad del contacto en GHL usando location_id
+    const searchRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?location_id=${GHL_LOCATION_ID}&limit=50`, { headers });
     const searchData = await searchRes.json();
-    const opportunity = searchData.opportunities?.[0];
+    
+    const opp = searchData.opportunities?.find(o => (o.contact?.id === contactId || o.contactId === contactId));
 
-    if (opportunity) {
-      await fetch(`https://services.leadconnectorhq.com/opportunities/${opportunity.id}`, {
+    if (opp) {
+      await fetch(`https://services.leadconnectorhq.com/opportunities/${opp.id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify({
-          pipelineStageId: STAGE_AGENDA
+          pipelineId: PIPELINE_ID,
+          pipelineStageId: STAGE_AGENDA,
+          name: opp.name || "Lead Agendado",
+          status: "open"
         })
       });
-      console.log(`📅 Oportunidad movida automáticamente a 'Agenda' para ${contactId}`);
+      console.log(`📅 Oportunidad ID ${opp.id} (${opp.name}) movida exitosamente a 'Agenda'`);
     }
 
+    // 2. Etiquetar al contacto
     await addTagToContact(contactId, "Turno_Agendado");
 
+    // 3. Crear evento de agendamiento en el calendario de GHL
     const startTime = new Date();
     startTime.setDate(startTime.getDate() + 1);
     startTime.setHours(15, 0, 0, 0);
