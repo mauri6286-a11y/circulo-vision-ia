@@ -14,7 +14,7 @@ const NICO_USER_ID = "Dm9trLIiq2sJmRCsgqrH"; // ID de Nico
 const PIPELINE_ID = "wyP2TvxIOaDFD6g5jz4s"; // Pipeline de Ventas - Óptica Círculo Visión
 const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead
 const STAGE_AGENDA = "1ee9cfbd-9b2f-4bdb-a558-89fb668b32d0"; // 6. Agenda
-const DEFAULT_CALENDAR_ID = "r7BEH6BpgfYJ1xJ47G99"; // Calendario Óptica Círculo Visión
+const DEFAULT_CALENDAR_ID = "pZ1yR94gS7442E098hEW"; // Calendario de la Optica (ACTIVO)
 
 const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
