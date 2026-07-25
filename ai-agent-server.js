@@ -12,7 +12,8 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.PALM_API_KEY;
 
 const NICO_USER_ID = "Dm9trLIiq2sJmRCsgqrH"; // ID de Nico
 const PIPELINE_ID = "wyP2TvxIOaDFD6g5jz4s"; // Pipeline de Ventas - Óptica Círculo Visión
-const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead (WhatsApp / Meta)
+const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead
+const STAGE_AGENDA = "1ee9cfbd-9b2f-4bdb-a558-89fb668b32d0"; // 6. Agenda
 
 const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
@@ -22,12 +23,10 @@ REGLAS DE ORO DE CONVERSACIÓN (ESTRICTAS):
 1. MENSAJES CORTOS: Escribe respuestas breves de máximo 2 a 3 líneas. No satures con información no solicitada.
 2. PRIMER SALUDO: Si saluda por primera vez, preséntate brevemente y pregúntale cómo lo puedes ayudar.
    Ej: "¡Hola! 😊 Soy la asistente de Óptica Círculo Visión (Av. Millán 4494). ¡Qué gusto saludarte! ¿En qué te podemos ayudar hoy?"
-3. MARCAS: Si el cliente pregunta qué marcas trabajan o si tienen armazones de marca, explícale que trabajan con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales) y pregúntale si busca alguna marca o modelo en particular.
-   Ej: "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales). ¿Buscas alguna marca o modelo en particular así te confirmo si la tenemos disponible?"
-4. CONVENIOS: Si pregunta por convenios, pregúntale a qué mutualista o sindicato pertenece para darle el dato exacto.
-   Ej: "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes. ¿A qué convenio o mutualista perteneces tú así te paso el beneficio exacto?"
-5. TEST VISUAL: Menciona que el test visual computarizado es 100% GRATIS ÚNICAMENTE cuando el cliente pregunte si hacen examen de vista o cuánto cuesta la revisión.
-   Ej: "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso. ¿Te gustaría coordinar un turno?"
+3. AGENDAMIENTO / TURNO: Cuando el cliente solicite agendarse o pida turno para el test visual, explícale que el test visual computarizado en Av. Millán 4494 es 100% GRATIS y sin compromiso, e invítalo a elegir el día y hora que mejor le quede.
+   Ej: "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso. ¿Qué día y horario te queda mejor esta semana para agendarte?"
+4. MARCAS: Si el cliente pregunta qué marcas trabajan, explícale que trabajan con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 e internacionales) y pregúntale si busca alguna marca o modelo en particular.
+5. CONVENIOS: Si pregunta por convenios, pregúntale a qué mutualista o sindicato pertenece para darle el dato exacto.
 6. MULTIFOCALES / CRISTALES: Responde de forma concisa sobre demoras (5 días), garantía (60 días de adaptación) y 12 cuotas sin recargo.
 7. TRASPASO A NICO / STAFF: Si consulta por stock de una marca/modelo específico o pide hablar con una persona, dile:
    "¡Con gusto! Te conecto directamente con Nico y el equipo en el local para asesorarte. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
@@ -37,16 +36,16 @@ REGLAS DE ORO DE CONVERSACIÓN (ESTRICTAS):
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase() : "";
 
-  // Si pregunta específicamente por MARCAS
-  if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas") || msg.includes("coleccion")) {
-    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 y marcas internacionales).\n\n" +
-      "¿Buscas alguna marca o modelo en particular así te confirmo si la tenemos disponible?";
+  // Si solicita AGENDARSE / TEST VISUAL
+  if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("medir") || msg.includes("vista")) {
+    return "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso. 🩺\n\n" +
+      "¿Qué día y horario te queda más cómodo esta semana para reservarte el turno?";
   }
 
-  // Si pregunta específicamente por el TEST / EXAMEN VISUAL
-  if (msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("medir") || msg.includes("vista") || msg.includes("oftalm")) {
-    return "¡Hola! 😊 Sí, hacemos test visual computarizado en nuestro local de Av. Millán 4494 y es 100% GRATIS y sin compromiso.\n\n" +
-      "¿Te gustaría coordinar un turno para esta semana?";
+  // Si pregunta por MARCAS
+  if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
+    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Neréa Eyewear, Oahu, Bric à Brac, GX7 y marcas internacionales).\n\n" +
+      "¿Buscas alguna marca o modelo en particular así te confirmo si la tenemos disponible?";
   }
 
   // Si pregunta por CONVENIOS
@@ -107,6 +106,36 @@ async function generateAIResponse(userMessage) {
   }
 
   return getSmartResponse(userMessage);
+}
+
+// Mover automáticamente la tarjeta en el Pipeline de GHL a la etapa 'Agenda'
+async function moveOpportunityToAgenda(contactId) {
+  try {
+    const headers = {
+      'Authorization': `Bearer ${GHL_TOKEN}`,
+      'Version': '2021-07-28',
+      'Content-Type': 'application/json'
+    };
+
+    // Buscar la oportunidad del contacto en GHL
+    const searchRes = await fetch(`https://services.leadconnectorhq.com/opportunities/search?locationId=${GHL_LOCATION_ID}&contact_id=${contactId}`, { headers });
+    const searchData = await searchRes.json();
+
+    const opportunity = searchData.opportunities?.[0];
+
+    if (opportunity) {
+      await fetch(`https://services.leadconnectorhq.com/opportunities/${opportunity.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({
+          pipelineStageId: STAGE_AGENDA
+        })
+      });
+      console.log(`📅 Oportunidad movida automáticamente a la etapa 'Agenda' para el contacto ${contactId}`);
+    }
+  } catch (e) {
+    console.error("Error moviendo oportunidad a Agenda:", e.message);
+  }
 }
 
 // Verificar si el contacto tiene etiqueta de atención humana
@@ -202,6 +231,12 @@ async function handleWebhook(req, res) {
   const contactName = `${firstName} ${lastName}`.trim();
 
   await ensureOpportunityAndAssignToNico(contactId, contactName);
+
+  // Si el mensaje del cliente indica intención clara de agendamiento/turno
+  const msgLower = incomingMessage.toLowerCase();
+  if (msgLower.includes("agendar") || msgLower.includes("turno") || msgLower.includes("reserva")) {
+    await moveOpportunityToAgenda(contactId);
+  }
 
   const aiReply = await generateAIResponse(incomingMessage);
 
