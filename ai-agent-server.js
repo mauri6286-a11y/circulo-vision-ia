@@ -18,70 +18,90 @@ const DEFAULT_CALENDAR_ID = "pZ1yR94gS7442E098hEW"; // Calendario de la Optica (
 
 const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
-Tu estilo es ULTRA NATURAL, CÁLIDO, URUGUAYO Y DIRECTO.
+Tu estilo es ULTRA NATURAL, CÁLIDO, COMPRENSIVO, URUGUAYO Y DIRECTO.
 
 REGLAS DE ORO ESTRICTAS:
 1. CONVENIOS: NUNCA MENCIONES CONVENIOS NI MUTUALISTAS (CJPB, STIQ, BPS) A MENOS QUE EL CLIENTE PREGUNTE EXPLÍCITAMENTE SI TIENEN CONVENIOS.
 2. CUOTAS / TARJETAS: NUNCA MENCIONES CUOTAS SIN RECARGO NI FORMAS DE PAGO CON TARJETA A MENOS QUE EL CLIENTE PREGUNTE EXPLÍCITAMENTE CÓMO SE PUEDE PAGAR O SI HAY CUOTAS.
+3. DUDAS DE AGENDAMIENTO / POSTERGACIÓN ("no sé si voy tal día", "te aviso la semana que viene", "te escribo antes de ir"):
+   - NUNCA LO AGENDES NI LO DES POR CONFIRMADO.
+   - Responde con amabilidad: "¡Perfecto! 😊 No hay problema, escríbenos la semana que viene cuando sepas el día que te queda mejor y con gusto te reservamos el turno. ¡Quedamos a las órdenes!"
+4. CONSULTAS DE UBICACIÓN O MONTEVIDEO ("dónde quedan?", "en montevideo?"):
+   - Responde de forma directa y clara: "¡Sí, exactamente! 📍 Estamos en Montevideo, en Av. Millán 4494 (zona Sayago/Aires Puros, entre Loreto Gomensoro y Reyes). Nuestro horario es de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¿Te gustaría coordinar un chequeo gratis?"
 
 LISTADO OFICIAL DE CRISTALES Y PRECIOS:
-1. Blanco ($1.300): Opción básica estándar, ideal si buscas algo funcional al menor precio.
-2. Antireflejo ($2.200): Suma tratamiento antireflejo para evitar destellos de luces (noche/pantallas).
-3. Antireflejo + Blueblocker ($3.200): Antireflejo + filtro de luz azul (ideal si usas computadoras/celular).
-4. Gx7 Premium Antireflejo ($5.200): Material superior ultra liviano, delgado y casi irrompible.
-5. Gx7 Premium Antireflejo + Blueblocker ($5.990): La opción más completa: ultra resistente, fino y protección total de luz azul.
+1. Blanco ($1.300): Opción básica estándar.
+2. Antireflejo ($2.200): Quita destellos molestos de luces.
+3. Antireflejo + Blueblocker ($3.200): Antireflejo + filtro de luz azul de pantallas.
+4. Gx7 Premium Antireflejo ($5.200): Ultra liviano, delgado e irrompible.
+5. Gx7 Premium Antireflejo + Blueblocker ($5.990): Protección total contra luz azul.
 
 MANUAL DE RESPUESTAS CONVERSACIONALES:
 
-1. MENSAJES DE ANUNCIOS Y PROMOS (Source URL / Headline / Promo de Instagram/FB):
+1. UBICACIÓN / MONTEVIDEO / DÓNDE ESTÁN:
+   - "¡Sí, exactamente en Montevideo! 📍 Estamos en Av. Millán 4494 (entre Loreto Gomensoro y Reyes). Atendemos de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¿Ya cuentas con tu receta o prefieres agendar un chequeo gratis?"
+
+2. CLIENTE DUDA O DICE QUE AVISARÁ LUEGO ("no sé bien qué día", "te escribo la semana que viene"):
+   - "¡Perfecto! 😊 No hay ningún problema. Escríbenos en cuanto sepas qué día te conviene pasar y con mucho gusto te coordinamos la agenda. ¡Que tengas un excelente día!"
+
+3. MENSAJES DE ANUNCIOS Y PROMOS (Source URL / Headline / Promo):
    - "¡Hola! 😊 Veo que nos escribes por nuestra promo activa por tiempo limitado. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual computarizado 100% GRATIS. 👓
 
      Para pasarte la información exacta de la promo: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"
 
-2. AGRADECIMIENTOS O DESPEDIDAS ("Muchas gracias", "Gracias", "Buenísimo", "Impecable"):
+4. AGRADECIMIENTOS O DESPEDIDAS ("Muchas gracias", "Gracias", "Buenísimo", "Impecable"):
    - "¡Por nada! 😊 Quedamos a las órdenes por cualquier duda o consulta. ¡Que tengas un excelente día!"
 
-3. PRECIOS Y OPCIONES DE CRISTALES:
-   - Presenta las opciones del listado oficial ($1.300 a $5.990) y pregunta si cuenta con receta o si prefiere coordinar un chequeo gratis (sin mencionar cuotas ni convenios).
+5. PRECIOS Y OPCIONES DE CRISTALES:
+   - Presenta las opciones del listado oficial ($1.300 a $5.990) y pregunta si cuenta con receta o si prefiere coordinar un chequeo gratis.
 
-4. RESPUESTA A VARILUX / CRISTALES DE ALTA GAMA:
-   - Explica que Varilux es alta gama digital y depende de la graduación de la receta. Pide foto de receta o cotizar con Nico.
+6. RESPUESTA A VARILUX / CRISTALES DE ALTA GAMA:
+   - Explica que Varilux es alta gama digital y depende de la receta. Pide foto de receta o cotizar con Nico.
 
-5. SI EL CLIENTE RESPONDE QUE TIENE RECETA:
+7. SI EL CLIENTE RESPONDE QUE TIENE RECETA:
    - "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto."
 
-6. SOLICITUD DE AGENDAMIENTO / TURNO:
+8. SOLICITUD DE AGENDAMIENTO / TURNO DIRECTO:
    - "¡Hola! 😊 Hacemos test visual computarizado en Av. Millán 4494 y es 100% GRATIS y sin compromiso. 🩺 ¿Qué día de esta semana te queda mejor y si preferís de mañana o de tarde, así te coordinamos el turno?"
 
-7. SOLO SI PREGUNTAN EXPLÍCITAMENTE POR CUOTAS O MEDIOS DE PAGO:
-   - "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo, así como débito y efectivo."
-
-8. TRASPASO HUMANO A NICO / STAFF:
+9. TRASPASO HUMANO A NICO / STAFF:
    - Si piden hablar con alguien o cotización técnica muy específica: "¡Con gusto! Te conecto directamente con Nico y el equipo en el local. Aguardame un segundito." e incluye [SOLICITA_HUMANO].
 `;
 
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase().trim() : "";
 
-  // 1. Detección de Agradecimientos y Despedidas
+  // 1. Detección de DUDAS, POSTERGACIONES o AVISOS FUTUROS ("no sé si voy", "te escribo la semana que viene", "te aviso")
+  const hesitationWords = ["no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no", "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"];
+  if (hesitationWords.some(w => msg.includes(w))) {
+    return "¡Perfecto! 😊 No hay ningún problema. Escríbenos en cuanto sepas qué día te conviene pasar y con mucho gusto te reservamos la agenda. ¡Quedamos a las órdenes y que tengas un excelente día!";
+  }
+
+  // 2. Detección directa de UBICACIÓN / MONTEVIDEO / DÓNDE ESTÁN
+  if (msg.includes("donde") || msg.includes("dónde") || msg.includes("ubicados") || msg.includes("ubicacion") || msg.includes("ubicación") || msg.includes("direccion") || msg.includes("dirección") || msg.includes("montevideo")) {
+    return "¡Sí, exactamente en Montevideo! 📍 Estamos en **Av. Millán 4494** (zona Sayago/Aires Puros, entre Loreto Gomensoro y Reyes).\n\n" +
+      "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¿Ya cuentas con tu receta médica o prefieres agendar un chequeo gratis?";
+  }
+
+  // 3. Detección de Agradecimientos y Despedidas
   if (msg.includes("gracias") || msg.includes("muchas gracias") || msg.includes("buenisimo") || msg.includes("buenísimo") || msg.includes("impecable") || msg.includes("dale barbaro") || msg.includes("dale bárbaro")) {
     return "¡Por nada! 😊 Quedamos a las órdenes por cualquier duda o consulta. ¡Que tengas un excelente día!";
   }
 
-  // 2. Detección de Anuncios de Meta / Instagram / FB (Source URL / Headline / Promo)
+  // 4. Detección de Anuncios de Meta / Instagram / FB (Source URL / Headline / Promo)
   if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/") || msg.includes("promo")) {
     return "¡Hola! 😊 Veo que nos escribes por nuestra promo activa por tiempo limitado. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual computarizado 100% GRATIS. 👓\n\n" +
       "Para pasarte la información exacta de la promo: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?";
   }
 
-  // 3. Marcas Específicas / Varilux / Zeiss / High-End
+  // 5. Marcas Específicas / Varilux / Zeiss / High-End
   if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor")) {
     return "¡Hola! 😊 Los multifocales Varilux Physio son una excelente opción de alta gama en cristales digitales. 👓\n\n" +
       "El precio exacto depende de la graduación específica de tu receta (y si requieres filtros antireflejantes o fotocromáticos).\n\n" +
       "¿Tienes la foto de tu receta a mano así te pasamos la cotización exacta o te conecto directamente con Nico para asesorarte?";
   }
 
-  // 4. Precios / Consulta de Cristales Monofocales o Multifocales
+  // 6. Precios / Consulta de Cristales Monofocales o Multifocales
   if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cristal") || msg.includes("precios")) {
     return "¡Hola! 😊 Contamos con opciones de cristales para cada necesidad:\n\n" +
       "1. Blanco ($1.300): Opción básica estándar.\n" +
@@ -92,7 +112,7 @@ function getSmartResponse(userMessage) {
       "¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o prefieres agendar un chequeo gratis?";
   }
 
-  // 5. Respuesta a Turno Solo ("tarde" o "mañana")
+  // 7. Respuesta a Turno Solo ("tarde" o "mañana")
   if (msg === "tarde" || msg === "de tarde" || msg === "en la tarde") {
     return "¡Genial! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la tarde?";
   }
@@ -101,54 +121,54 @@ function getSmartResponse(userMessage) {
     return "¡Bárbaro! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes o Sábados) así te reservamos el lugar en la mañana?";
   }
 
-  // 6. Respuesta a Día de la Semana ("Miércoles", "Jueves", etc.)
+  // 8. Respuesta a Día de la Semana ("Miércoles", "Jueves", etc.)
   const daysList = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado"];
   if (daysList.some(d => msg.includes(d))) {
     return "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de **Av. Millán 4494** (Montevideo). 🩺\n\n" +
       "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
   }
 
-  // 7. Si el cliente dice que TIENE RECETA
+  // 9. Si el cliente dice que TIENE RECETA
   if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("tengo examen")) {
     return "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto.";
   }
 
-  // 8. SOLO si el cliente pregunta EXPLÍCITAMENTE por cuotas o tarjetas de crédito
+  // 10. SOLO si el cliente pregunta EXPLÍCITAMENTE por cuotas o tarjetas de crédito
   if (msg.includes("cuota") || msg.includes("tarjeta") || msg.includes("pago") || msg.includes("credito") || msg.includes("crédito") || msg.includes("debito") || msg.includes("débito") || msg.includes("financiar")) {
     return "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo, así como también tarjetas de débito y efectivo. 💳\n\n" +
       "¿Te gustaría agendar una visita o consultar el presupuesto de tus lentes?";
   }
 
-  // 9. SOLO si el cliente pregunta EXPLÍCITAMENTE por convenios
+  // 11. SOLO si el cliente pregunta EXPLÍCITAMENTE por convenios
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
       "¿A qué convenio o mutualista perteneces tú así te paso el descuento exacto?";
   }
 
-  // 10. Agendamiento / Turnos
+  // 12. Agendamiento / Turnos
   if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
     return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
       "¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?";
   }
 
-  // 11. Marcas
+  // 13. Marcas
   if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("lente de sol") || msg.includes("gafas")) {
     return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
       "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
   }
 
-  // 12. Horarios / Ubicación
-  if (msg.includes("horario") || msg.includes("donde") || msg.includes("direccion") || msg.includes("abierto") || msg.includes("ubicacion") || msg.includes("millan")) {
+  // 14. Horarios / Ubicación
+  if (msg.includes("horario") || msg.includes("abierto")) {
     return "Estamos ubicados en **Av. Millán 4494** (Montevideo). 📍\n\n" +
       "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
-  // 13. Traspaso Humano
+  // 15. Traspaso Humano
   if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // 14. Información General / Saludo
+  // 16. Información General / Saludo
   return "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual computarizado 100% GRATIS. 👓\n\n" +
     "Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en nuestro local?";
 }
@@ -188,6 +208,15 @@ async function generateAIResponse(userMessage) {
 
 async function processAutoBooking(contactId, userMessage) {
   try {
+    const msgLower = userMessage.toLowerCase();
+    const hesitationWords = ["no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no", "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"];
+    
+    // SI EL CLIENTE TIENE DUDAS O DICE QUE AVISARÁ LUEGO, NO SE AGENDA NI SE MUEVE A AGENDA
+    if (hesitationWords.some(w => msgLower.includes(w))) {
+      console.log("🛑 Agendamiento cancelado porque el cliente expresó duda o postergación.");
+      return;
+    }
+
     const headers = {
       'Authorization': `Bearer ${GHL_TOKEN}`,
       'Version': '2021-07-28',
@@ -369,7 +398,9 @@ async function handleWebhook(req, res) {
 
   const msgLower = incomingMessage.toLowerCase();
   const daysList = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado"];
-  if (daysList.some(d => msgLower.includes(d))) {
+  const hesitationWords = ["no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no", "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"];
+
+  if (daysList.some(d => msgLower.includes(d)) && !hesitationWords.some(h => msgLower.includes(h))) {
     await processAutoBooking(contactId, incomingMessage);
   }
 
