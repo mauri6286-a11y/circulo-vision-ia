@@ -31,6 +31,9 @@ REGLA DE SEGURIDAD ABSOLUTA DE RETIRO / ESTADO DE LENTES (REGLA #2):
 - SI PREGUNTAN SI SUS LENTES LLEGARON O ESTÁN LISTOS:
   "¡Hola! 😊 Con gusto. Para confirmarte con total seguridad si tu pedido ya está pronto en el taller, le paso tu consulta a Nico y al equipo en el local para que revisen el estado exacto de tu trabajo y te confirmen. Aguardame un segundito por favor. [SOLICITA_HUMANO]"
 
+REGLA DE AGRADECIMIENTO ("Gracias", "Dale ok gracias", "Impecable"):
+- Responder siempre cortésmente: "¡Por nada! 😊 Quedamos a las órdenes por cualquier duda o consulta. ¡Que tengas un excelente día!" (NUNCA ENVIAR EL SALUDO INICIAL).
+
 REGLAS GENERALES:
 1. BIFOCALES: Opciones desde $2.500.
 2. LENTES DE SOL: Sin recetas ni chequeos. Presenta colecciones UV400/polarizados (+50 marcas).
@@ -48,43 +51,43 @@ LISTADO DE CRISTALES Y PRECIOS:
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase().trim() : "";
 
-  // 1. REGLA SUPREMA Y ABSOLUTA #1: RETIRO / ESTADO DE LENTES -> TRASPASO A HUMANO
+  // 1. REGLA SUPREMA #1: RETIRO / ESTADO DE LENTES -> TRASPASO OBLIGATORIO A HUMANO
   if (msg.includes("llegaron") || msg.includes("listos") || msg.includes("prontos") || msg.includes("retirar") || msg.includes("mi pedido") || msg.includes("mis lentes") || msg.includes("taller")) {
     return "¡Hola! 😊 Para confirmarte con total certeza si tu pedido ya está pronto en el taller, le paso tu consulta a Nico y al equipo en el local para que revisen tu trabajo y te confirmen. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // 2. REGLA SUPREMA Y ABSOLUTA #2: SOLICITUD DE AGENDAMIENTO / TURNO / CHEQUEO -> TRASPASO A HUMANO A NICO
+  // 2. REGLA SUPREMA #2: SOLICITUD DE AGENDAMIENTO / TURNO / CHEQUEO -> TRASPASO OBLIGATORIO A HUMANO
   if (msg.includes("agendar") || msg.includes("agendarme") || msg.includes("agendame") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("cita") || msg.includes("reserva") || msg.includes("reservar")) {
     return "¡Hola! 😊 Con mucho gusto. Le paso tu solicitud de agenda a Nico y al equipo en el local para que verifiquen los horarios disponibles en la agenda y te confirmen el turno exacto. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // 3. BIFOCALES
+  // 3. AGRADECIMIENTOS Y CORTESÍA (ej: "Dale ok Gracias", "Gracias", "Impecable")
+  if (msg.includes("gracias") || msg.includes("dale ok") || msg.includes("buenisimo") || msg.includes("buenísimo") || msg.includes("impecable") || msg.includes("dale barbaro") || msg.includes("dale bárbaro")) {
+    return "¡Por nada! 😊 Quedamos a las órdenes por cualquier duda o consulta. ¡Que tengas un excelente día!";
+  }
+
+  // 4. DESPEDIDAS SECUNDARIAS
+  if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
+    return "¡Muchas gracias a ti! 👋 ¡Saludos y que tengas una hermosa jornada!";
+  }
+
+  // 5. BIFOCALES
   if (msg.includes("bifocal") || msg.includes("bifocales")) {
     return "¡Hola! 😊 Con mucho gusto te asesoro sobre los cristales bifocales. 👓\n\n" +
       "El valor de los cristales bifocales varía según la graduación de tu receta (tenemos opciones bifocales desde $2.500).\n\n" +
       "¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o prefieres coordinar un chequeo gratis en el local?";
   }
 
-  // 4. LENTES DE SOL
+  // 6. LENTES DE SOL
   if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
     return "¡Hola! 😊 Con mucho gusto. En Óptica Círculo Visión (Av. Millán 4494) contamos con una excelente variedad de lentes de sol con protección UV400 y filtros polarizados de más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales). 🕶️\n\n" +
       "¿Buscas algún modelo o estilo en particular, o prefieres pasarte por nuestro local a probártelos?";
   }
 
-  // 5. PROMOS
+  // 7. PROMOS
   if (msg.includes("interesad") || msg.includes("interesado") || msg.includes("interesada") || msg.includes("promo") || msg.includes("promocion") || msg.includes("promoción")) {
     return "¡Hola! 😊 Con mucho gusto te asesoro sobre la promo. En Óptica Círculo Visión (**Av. Millán 4494**) contamos con test visual computarizado 100% GRATIS. 👓\n\n" +
       "Para ayudarte a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en nuestro local?";
-  }
-
-  // 6. DESPEDIDAS SECUNDARIAS
-  if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
-    return "¡Muchas gracias a ti! 👋 ¡Saludos y que tengas una hermosa jornada!";
-  }
-
-  // 7. AGRADECIMIENTOS
-  if (msg === "gracias" || msg === "muchas gracias" || msg === "buenisimo" || msg === "buenísimo" || msg === "impecable" || msg === "dale barbaro" || msg === "dale bárbaro") {
-    return "¡Por nada! 😊 Quedamos a las órdenes por cualquier duda o consulta. ¡Que tengas un excelente día!";
   }
 
   // 8. UBICACIÓN
@@ -258,8 +261,9 @@ async function handleWebhook(req, res) {
   console.log("📥 Webhook recibido de GHL:", JSON.stringify(req.body, null, 2));
 
   const contactId = req.body.contact_id || req.body.contactId || req.body.contact?.id || req.body.id;
-  const direction = req.body.direction || req.body.type || "";
-  const userId = req.body.userId || req.body.user_id;
+  const direction = (req.body.direction || req.body.type || req.body.message?.direction || "").toString();
+  const userId = req.body.userId || req.body.user_id || req.body.message?.userId;
+  const source = (req.body.source || req.body.message?.source || "").toString();
 
   const fullBodyStr = JSON.stringify(req.body).toLowerCase();
   let channelType = 'WhatsApp';
@@ -270,8 +274,16 @@ async function handleWebhook(req, res) {
     channelType = 'FB';
   }
 
-  if (direction === 'outbound' || direction === 'outbound-api' || direction === 'Outbound' || userId) {
-    console.log(`👤 Mensaje del equipo (Staff) detectado. Pausando IA para el contacto ${contactId}...`);
+  // DETECCIÓN TOTAL DE MENSAJES DE STAFF / AUDIO DESDE GHL / WHATSAPP / INSTAGRAM
+  const isOutboundStaff = direction.toLowerCase().includes("outbound") || 
+                          userId || 
+                          source.toLowerCase().includes("user") || 
+                          source.toLowerCase().includes("mobile") || 
+                          fullBodyStr.includes('"direction":"outbound"') ||
+                          fullBodyStr.includes('"userid":');
+
+  if (isOutboundStaff) {
+    console.log(`👤 Mensaje del equipo (Staff / Nico / Audio) detectado. Pausando IA para el contacto ${contactId}...`);
     if (contactId) {
       await addTagToContact(contactId, "Atencion_Humana");
     }
