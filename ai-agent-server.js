@@ -202,7 +202,7 @@ async function generateAIResponse(userMessage) {
   console.log(`💬 Procesando mensaje omnicanal: "${userMessage}"`);
 
   if (GEMINI_API_KEY && GEMINI_API_KEY.length > 20) {
-    const models = ['gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
+    const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-exp', 'gemini-1.5-pro'];
 
     for (const model of models) {
       try {
