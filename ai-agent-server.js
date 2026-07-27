@@ -18,27 +18,18 @@ const DEFAULT_CALENDAR_ID = "pZ1yR94gS7442E098hEW"; // Calendario de la Optica (
 
 const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
-Tu estilo es 100% HUMANO, ULTRA CONTEXTUAL, CÁLIDO, URUGUAYO Y ADAPTATIVO. LEES Y ANALIZAS CADA MENSAJE CON ATENCIÓN EXTREMA.
+Tu estilo es 100% HUMANO, ULTRA CONTEXTUAL, CÁLIDO, URUGUAYO Y ADAPTATIVO.
 
-REGLAS DE INTELIGENCIA Y AUTOCORRECCIÓN CONTEXTUAL:
+REGLA DE ORO ESTRICTA DE AGENDAMIENTO (FECHA Y HORA EXACTA):
+- NUNCA CONFIRMES UN AGENDAMIENTO NI MUEVAS A 'AGENDA' CON FRASES GENÉRICAS COMO "de tarde", "de mañana" O SOLO "miércoles".
+- PARA AGENDAR, DEBES SOLICITAR Y OBTENER EL DÍA Y LA HORA EXACTA (ej: "Miércoles a las 15:30 hs" o "Viernes a las 10:00 hs").
+- Si el cliente solo dice "de tarde" o "el miércoles", pídele la hora específica: "¡Genial! Atendemos de 14 a 19 hs de tarde. ¿En qué hora exacta te queda mejor pasar (por ejemplo a las 15:00, 16:00 o 17:30 hs) así te reservamos el horario disponible?"
 
-1. SI EL CLIENTE RESPONDE EL TURNO ("En la tarde me queda bien", "tarde", "de tarde", "en la mañana"):
-   - RECONOCE SU ELECCIÓN DE TURNO Y PREGÚNTALE EL DÍA QUE PREFIERE.
-   - Ejemplo: "¡Genial! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes de 9 a 19 hs o Sábados de 9 a 14 hs) así te reservamos el lugar en la tarde?"
-
-2. DUDAS, PROBABILIDADES O POSTERGACIONES ("lo más probable que pase el viernes", "veré si puedo", "no sé bien", "te aviso", "capaz"):
-   - NUNCA CONFIRMES EL AGENDAMIENTO NI MUEVAS A AGENDA SI EL CLIENTE USA EXPRESIONES DE DUDA O PROBABILIDAD.
-   - Responde amablemente: "¡Perfecto! 😊 No hay problema, escríbenos cuando tengas confirmado el día o pásate directamente por Av. Millán 4494 de Lunes a Viernes de 9 a 19 hs o Sábados de 9 a 14 hs. ¡Quedamos a las órdenes!"
-
-3. BIFOCALES Y PRECIOS DE CRISTALES:
-   - Si piden cristales bifocales: "¡Hola! 😊 Con mucho gusto te asesoro sobre los cristales bifocales. El costo depende de la graduación de tu receta (opciones bifocales desde $2.500). ¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o prefieres agendar un chequeo gratis?"
-
-4. LENTES DE SOL:
-   - NUNCA HABLES DE RECETAS NI TEST VISUALES. Responde sobre colecciones de sol UV400 y polarizados (+50 marcas como Oahu, Bric à Brac, GX7).
-
-5. REGLAS GENERALES:
-   - Convenios y cuotas: NUNCA los menciones a menos que el cliente pregunte explícitamente por ellos.
-   - Despedidas: Responde de forma fresca sin repetir despedidas anteriores.
+REGLAS GENERALES:
+1. DUDAS O PROBABILIDADES ("lo más probable", "veré", "te aviso"): NUNCA agendes ni muevas a Agenda.
+2. BIFOCALES: Opciones desde $2.500.
+3. LENTES DE SOL: Sin recetas ni chequeos. Presenta colecciones UV400/polarizados (+50 marcas).
+4. CONVENIOS Y CUOTAS: NUNCA los menciones a menos que pregunten explícitamente por ellos.
 
 LISTADO DE CRISTALES Y PRECIOS:
 - Blanco ($1.300): Opción básica estándar.
@@ -49,77 +40,109 @@ LISTADO DE CRISTALES Y PRECIOS:
 - Gx7 Premium Antireflejo + Blueblocker ($5.990): Protección total.
 `;
 
+// Verifica si el mensaje incluye DÍA Y HORA EXACTA ESPECÍFICA (ej: "15", "15:30", "16 hs", "a las 10")
+function hasExactBookingTime(msg) {
+  const m = msg.toLowerCase();
+  
+  const hesitationWords = [
+    "lo mas probable", "lo más probable", "probablemente", "probable", "veré", "vere",
+    "no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no",
+    "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"
+  ];
+
+  if (hesitationWords.some(w => m.includes(w))) return false;
+
+  const days = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado", "mañana", "hoy"];
+  const timeIndicators = [":00", ":30", ":15", ":45", " hs", " hora", " horas", "a las ", " am", " pm", "10", "11", "12", "13", "14", "15", "16", "17", "18"];
+
+  const hasDay = days.some(d => m.includes(d));
+  const hasTime = timeIndicators.some(t => m.includes(t));
+
+  return hasDay && hasTime;
+}
+
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase().trim() : "";
 
-  // 1. Detección de DUDAS o PROBABILIDADES ("lo más probable", "probablemente", "capaz", "veré", "no sé")
+  // 1. Detección de DUDAS o PROBABILIDADES
   const hesitationWords = [
     "lo mas probable", "lo más probable", "probablemente", "probable", "veré", "vere",
     "no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no",
     "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"
   ];
   if (hesitationWords.some(w => msg.includes(w))) {
-    return "¡Perfecto! 😊 No hay ningún problema. Escríbenos en cuanto sepas qué día te conviene pasar o acércate directamente a Av. Millán 4494 (Lun a Vie 9-19 hs, Sáb 9-14 hs). ¡Quedamos a las órdenes y que tengas un excelente día!";
+    return "¡Perfecto! 😊 No hay ningún problema. Escríbenos en cuanto sepas qué día y hora te conviene pasar o acércate directamente a Av. Millán 4494 (Lun a Vie 9-19 hs, Sáb 9-14 hs). ¡Quedamos a las órdenes y que tengas un excelente día!";
   }
 
-  // 2. Detección de BIFOCALES
+  // 2. Si da DÍA Y HORA EXACTA (ej: "Miércoles a las 15:30", "Viernes 16 hs")
+  if (hasExactBookingTime(msg)) {
+    return "¡Excelente! Quedas agendado/a en esa hora exacta para tu test visual 100% GRATIS en nuestro local de **Av. Millán 4494** (Montevideo). 🩺\n\n" +
+      "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
+  }
+
+  // 3. Si sólo da el turno genérico ("tarde" o "mañana") o sólo el día ("miércoles") -> PIDE HORA EXACTA
+  if (msg.includes("tarde") || msg === "de tarde" || msg === "en la tarde") {
+    return "¡Genial! 😊 De tarde atendemos de 14 a 19 hs. ¿Qué día y en qué hora exacta te queda más cómodo venir (por ejemplo a las 15:00, 16:00 o 17:30 hs) para reservarte ese horario disponible?";
+  }
+
+  if (msg.includes("mañana") || msg.includes("manana") || msg === "de mañana" || msg === "en la mañana") {
+    return "¡Bárbaro! 😊 De mañana atendemos de 9 a 13 hs. ¿Qué día y en qué hora exacta te queda más cómodo venir (por ejemplo a las 9:30, 10:30 o 11:30 hs) para reservarte ese horario disponible?";
+  }
+
+  const daysList = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado"];
+  if (daysList.some(d => msg.includes(d))) {
+    return "¡Perfecto! 😊 ¿Y a qué hora específica de ese día te gustaría venir (por ejemplo a las 10:30, 15:00 o 16:30 hs) así te verificamos el horario libre y te dejamos reservado el turno?";
+  }
+
+  // 4. BIFOCALES
   if (msg.includes("bifocal") || msg.includes("bifocales")) {
     return "¡Hola! 😊 Con mucho gusto te asesoro sobre los cristales bifocales. 👓\n\n" +
       "El valor de los cristales bifocales varía según la graduación de tu receta (tenemos opciones bifocales desde $2.500).\n\n" +
       "¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o prefieres coordinar un chequeo gratis en el local?";
   }
 
-  // 3. Detección de RESPUESTA A TURNO ("en la tarde me queda bien", "tarde", "de tarde", "en la mañana")
-  if (msg.includes("tarde") || msg === "tarde" || msg === "de tarde" || msg === "en la tarde") {
-    return "¡Genial! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes de 9 a 19 hs o Sábados de 9 a 14 hs) así te reservamos el lugar en la tarde?";
-  }
-
-  if (msg.includes("mañana") || msg.includes("manana") || msg === "de mañana" || msg === "de manana" || msg === "en la mañana") {
-    return "¡Bárbaro! 😊 ¿Y qué día de esta semana te queda mejor pasar (Lunes a Viernes de 9 a 19 hs o Sábados de 9 a 14 hs) así te reservamos el lugar en la mañana?";
-  }
-
-  // 4. Detección de LENTES DE SOL
+  // 5. LENTES DE SOL
   if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
     return "¡Hola! 😊 Con mucho gusto. En Óptica Círculo Visión (Av. Millán 4494) contamos con una excelente variedad de lentes de sol con protección UV400 y filtros polarizados de más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales). 🕶️\n\n" +
       "¿Buscas algún modelo o estilo en particular, o prefieres pasarte por nuestro local a probártelos?";
   }
 
-  // 5. Detección de Interés en Promociones
+  // 6. Promociones
   if (msg.includes("interesad") || msg.includes("interesado") || msg.includes("interesada") || msg.includes("promo") || msg.includes("promocion") || msg.includes("promoción")) {
     return "¡Hola! 😊 Con mucho gusto te asesoro sobre la promo. En Óptica Círculo Visión (**Av. Millán 4494**) contamos con test visual computarizado 100% GRATIS. 👓\n\n" +
       "Para ayudarte a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en nuestro local?";
   }
 
-  // 6. Detección de Despedidas Secundarias ("Igualmente", "Saludos")
+  // 7. Despedidas Secundarias
   if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
     return "¡Muchas gracias a ti! 👋 ¡Saludos y que tengas una hermosa jornada!";
   }
 
-  // 7. Detección de Agradecimientos directos
+  // 8. Agradecimientos directos
   if (msg === "gracias" || msg === "muchas gracias" || msg === "buenisimo" || msg === "buenísimo" || msg === "impecable" || msg === "dale barbaro" || msg === "dale bárbaro") {
     return "¡Por nada! 😊 Quedamos a las órdenes por cualquier duda o consulta. ¡Que tengas un excelente día!";
   }
 
-  // 8. Detección directa de UBICACIÓN / MONTEVIDEO
+  // 9. UBICACIÓN / MONTEVIDEO
   if (msg.includes("donde") || msg.includes("dónde") || msg.includes("ubicados") || msg.includes("ubicacion") || msg.includes("ubicación") || msg.includes("direccion") || msg.includes("dirección") || msg.includes("montevideo")) {
     return "¡Sí, exactamente en Montevideo! 📍 Estamos en **Av. Millán 4494** (zona Sayago/Aires Puros, entre Loreto Gomensoro y Reyes).\n\n" +
       "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¿Ya cuentas con tu receta médica o prefieres agendar un chequeo gratis?";
   }
 
-  // 9. Detección de Anuncios Meta
+  // 10. Anuncios Meta
   if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/")) {
     return "¡Hola! 😊 Veo que nos escribes por nuestra promo activa por tiempo limitado. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual computarizado 100% GRATIS. 👓\n\n" +
       "Para pasarte la información exacta de la promo: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?";
   }
 
-  // 10. Marcas Específicas
+  // 11. Marcas Específicas
   if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor")) {
     return "¡Hola! 😊 Los multifocales Varilux Physio son una excelente opción de alta gama en cristales digitales. 👓\n\n" +
       "El precio exacto depende de la graduación específica de tu receta (y si requieres filtros antireflejantes o fotocromáticos).\n\n" +
       "¿Tienes la foto de tu receta a mano así te pasamos la cotización exacta o te conecto directamente con Nico para asesorarte?";
   }
 
-  // 11. Precios de Cristales Generales
+  // 12. Precios de Cristales
   if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cristal") || msg.includes("precios")) {
     return "¡Hola! 😊 Contamos con opciones de cristales para cada necesidad:\n\n" +
       "1. Blanco ($1.300): Opción básica estándar.\n" +
@@ -130,25 +153,18 @@ function getSmartResponse(userMessage) {
       "¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o prefieres agendar un chequeo gratis?";
   }
 
-  // 12. Respuesta a Día de la Semana
-  const daysList = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado"];
-  if (daysList.some(d => msg.includes(d))) {
-    return "¡Excelente! Quedas agendado/a para tu test visual 100% GRATIS en nuestro local de **Av. Millán 4494** (Montevideo). 🩺\n\n" +
-      "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
-  }
-
   // 13. Tiene Receta
   if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("tengo examen")) {
     return "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto.";
   }
 
-  // 14. Cuotas o Tarjetas (solo si preguntan)
+  // 14. Cuotas o Tarjetas
   if (msg.includes("cuota") || msg.includes("tarjeta") || msg.includes("pago") || msg.includes("credito") || msg.includes("crédito") || msg.includes("debito") || msg.includes("débito") || msg.includes("financiar")) {
     return "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo, así como también tarjetas de débito y efectivo. 💳\n\n" +
       "¿Te gustaría agendar una visita o consultar el presupuesto de tus lentes?";
   }
 
-  // 15. Convenios (solo si preguntan)
+  // 15. Convenios
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
     return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
       "¿A qué convenio o mutualista perteneces tú así te paso el descuento exacto?";
@@ -157,7 +173,7 @@ function getSmartResponse(userMessage) {
   // 16. Agendamiento
   if (msg.includes("agendar") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo")) {
     return "¡Hola! 😊 Hacemos test visual computarizado en **Av. Millán 4494** y es 100% GRATIS y sin compromiso. 🩺\n\n" +
-      "¿Qué días te quedan mejor y si preferís de mañana o de tarde, así te coordinamos la agenda?";
+      "¿Qué día y en qué hora exacta te gustaría venir (por ejemplo el Miércoles a las 15:30 hs) para reservarte la hora disponible?";
   }
 
   // 17. Marcas
@@ -217,15 +233,9 @@ async function generateAIResponse(userMessage) {
 
 async function processAutoBooking(contactId, userMessage) {
   try {
-    const msgLower = userMessage.toLowerCase();
-    const hesitationWords = [
-      "lo mas probable", "lo más probable", "probablemente", "probable", "veré", "vere",
-      "no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no",
-      "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"
-    ];
-    
-    if (hesitationWords.some(w => msgLower.includes(w))) {
-      console.log("🛑 Agendamiento cancelado porque el cliente expresó duda o probabilidad.");
+    // REGLA ABSOLUTA: Solo agendar si el mensaje contiene DÍA Y HORA EXACTA (evita agendamientos genéricos de "de tarde")
+    if (!hasExactBookingTime(userMessage)) {
+      console.log("🛑 Agendamiento ignorado porque no contiene día y hora exacta específica.");
       return;
     }
 
@@ -408,15 +418,7 @@ async function handleWebhook(req, res) {
 
   await ensureOpportunityAndAssignToNico(contactId, contactName);
 
-  const msgLower = incomingMessage.toLowerCase();
-  const daysList = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado"];
-  const hesitationWords = [
-    "lo mas probable", "lo más probable", "probablemente", "probable", "veré", "vere",
-    "no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no",
-    "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"
-  ];
-
-  if (daysList.some(d => msgLower.includes(d)) && !hesitationWords.some(h => msgLower.includes(h))) {
+  if (hasExactBookingTime(incomingMessage)) {
     await processAutoBooking(contactId, incomingMessage);
   }
 
