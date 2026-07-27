@@ -20,11 +20,11 @@ const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
 Tu estilo es 100% HUMANO, ULTRA CONTEXTUAL, CÁLIDO, URUGUAYO Y ADAPTATIVO. LEES Y ANALIZAS CADA MENSAJE CON ATENCIÓN EXTREMA.
 
-REGLA DE SEGURIDAD ABSOLUTA Y OBLIGATORIA DE RETIRO / ESTADO DE LENTES:
+REGLA DE SEGURIDAD ABSOLUTA Y OBLIGATORIA DE RETIRO / ESTADO DE LENTES (REGLA #1):
 - LA IA NUNCA PUEDE CONFIRMAR NI DECIR QUE UNOS LENTES O TRABAJOS ESTÁN LISTOS, PRONTOS O LLEGARON.
-- NUNCA USES FRASES AMBIGUAS COMO "si ya están listos" QUE PUEDAN CONFUNDIR AL CLIENTE.
+- NUNCA USES FRASES AMBIGUAS COMO "si ya están listos" O INTENTES AGENDAR A QUIEN PREGUNTA POR RETIRO DE LENTES.
 - SI EL CLIENTE PREGUNTA SI SUS LENTES LLEGARON, SI ESTÁN LISTOS, SI ESTÁN PRONTOS O SI PUEDE PASAR A RETIRAR:
-  Debes transferir el caso INMEDIATAMENTE a Nico y al equipo del taller para verificación humana:
+  Debes responder INMEDIATAMENTE transfiriendo el caso a Nico y al equipo del taller para verificación humana:
   "¡Hola! 😊 Con gusto. Para confirmarte con total seguridad si tu pedido ya está pronto en el taller, le paso tu consulta a Nico y al equipo en el local para que revisen el estado exacto de tu trabajo y te confirmen. Aguardame un segundito por favor. [SOLICITA_HUMANO]"
 
 REGLA ESTRICTA DE AGENDAMIENTO (FECHA Y HORA EXACTA):
@@ -36,14 +36,6 @@ REGLAS GENERALES:
 2. BIFOCALES: Opciones desde $2.500.
 3. LENTES DE SOL: Sin recetas ni chequeos. Presenta colecciones UV400/polarizados (+50 marcas).
 4. CONVENIOS Y CUOTAS: NUNCA los menciones a menos que pregunten explícitamente por ellos.
-
-LISTADO DE CRISTALES Y PRECIOS:
-- Blanco ($1.300): Opción básica estándar.
-- Antireflejo ($2.200): Quita destellos molestos.
-- Antireflejo + Blueblocker ($3.200): Filtro luz azul de pantallas.
-- Bifocales (desde $2.500): Visión cerca y lejos.
-- Gx7 Premium Antireflejo ($5.200): Ultra liviano e irrompible.
-- Gx7 Premium Antireflejo + Blueblocker ($5.990): Protección total.
 `;
 
 const hesitationWords = [
@@ -68,7 +60,7 @@ function hasExactBookingTime(msg) {
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase().trim() : "";
 
-  // 1. REGLA SUPREMA DE SEGURIDAD: CONSULTAS DE RETIRO / ESTADO DE LENTES -> TRASPASO DIRECTO A NICO (HUMANO)
+  // 1. REGLA SUPREMA Y ABSOLUTA #1: CONSULTAS DE RETIRO / ESTADO DE LENTES -> TRASPASO OBLIGATORIO A NICO (HUMANO)
   if (msg.includes("llegaron") || msg.includes("listos") || msg.includes("prontos") || msg.includes("retirar") || msg.includes("mi pedido") || msg.includes("mis lentes") || msg.includes("taller")) {
     return "¡Hola! 😊 Para confirmarte con total certeza si tu pedido ya está pronto en el taller, le paso tu consulta a Nico y al equipo en el local para que revisen tu trabajo y te confirmen. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
@@ -82,6 +74,17 @@ function getSmartResponse(userMessage) {
       "Te esperamos con gusto en la sucursal. ¡Cualquier duda estamos a las órdenes!";
   }
 
+  if (msg.includes("bifocal") || msg.includes("bifocales")) {
+    return "¡Hola! 😊 Con mucho gusto te asesoro sobre los cristales bifocales. 👓\n\n" +
+      "El valor de los cristales bifocales varía según la graduación de tu receta (tenemos opciones bifocales desde $2.500).\n\n" +
+      "¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o prefieres coordinar un chequeo gratis en el local?";
+  }
+
+  if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
+    return "¡Hola! 😊 Con mucho gusto. En Óptica Círculo Visión (Av. Millán 4494) contamos con una excelente variedad de lentes de sol con protección UV400 y filtros polarizados de más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales). 🕶️\n\n" +
+      "¿Buscas algún modelo o estilo en particular, o prefieres pasarte por nuestro local a probártelos?";
+  }
+
   if (msg.includes("tarde") || msg === "de tarde" || msg === "en la tarde") {
     return "¡Genial! 😊 De tarde atendemos de 14 a 19 hs. ¿Qué día y en qué hora exacta te queda más cómodo venir (por ejemplo a las 15:00, 16:00 o 17:30 hs) para reservarte ese horario disponible?";
   }
@@ -93,17 +96,6 @@ function getSmartResponse(userMessage) {
   const daysList = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado"];
   if (daysList.some(d => msg.includes(d))) {
     return "¡Perfecto! 😊 ¿Y a qué hora específica de ese día te gustaría venir (por ejemplo a las 10:30, 15:00 o 16:30 hs) así te verificamos el horario libre y te dejamos reservado el turno?";
-  }
-
-  if (msg.includes("bifocal") || msg.includes("bifocales")) {
-    return "¡Hola! 😊 Con mucho gusto te asesoro sobre los cristales bifocales. 👓\n\n" +
-      "El valor de los cristales bifocales varía según la graduación de tu receta (tenemos opciones bifocales desde $2.500).\n\n" +
-      "¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o prefieres coordinar un chequeo gratis en el local?";
-  }
-
-  if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
-    return "¡Hola! 😊 Con mucho gusto. En Óptica Círculo Visión (Av. Millán 4494) contamos con una excelente variedad de lentes de sol con protección UV400 y filtros polarizados de más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales). 🕶️\n\n" +
-      "¿Buscas algún modelo o estilo en particular, o prefieres pasarte por nuestro local a probártelos?";
   }
 
   if (msg.includes("interesad") || msg.includes("interesado") || msg.includes("interesada") || msg.includes("promo") || msg.includes("promocion") || msg.includes("promoción")) {
