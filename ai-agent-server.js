@@ -40,15 +40,14 @@ LISTADO DE CRISTALES Y PRECIOS:
 - Gx7 Premium Antireflejo + Blueblocker ($5.990): Protección total.
 `;
 
+const hesitationWords = [
+  "lo mas probable", "lo más probable", "probablemente", "probable", "veré", "vere",
+  "no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no",
+  "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"
+];
+
 function hasExactBookingTime(msg) {
   const m = msg.toLowerCase();
-  
-  const hesitationWords = [
-    "lo mas probable", "lo más probable", "probablemente", "probable", "veré", "vere",
-    "no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no",
-    "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"
-  ];
-
   if (hesitationWords.some(w => m.includes(w))) return false;
 
   const days = ["lunes", "martes", "miercoles", "miércoles", "jueves", "viernes", "sabado", "sábado", "mañana", "hoy"];
@@ -172,17 +171,11 @@ function getSmartResponse(userMessage) {
     "Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en nuestro local?";
 }
 
-const hesitationWords = [
-  "lo mas probable", "lo más probable", "probablemente", "probable", "veré", "vere",
-  "no se", "no sé", "no se bien", "no sé bien", "te aviso", "te escribo", "aun no",
-  "aún no", "todavia no", "todavía no", "la semana que viene", "después aviso", "despues aviso", "capaz"
-];
-
 async function generateAIResponse(userMessage) {
   console.log(`💬 Procesando mensaje omnicanal: "${userMessage}"`);
 
   if (GEMINI_API_KEY && GEMINI_API_KEY.length > 10) {
-    const models = ['gemini-2.0-flash', 'gemini-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+    const models = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
 
     for (const model of models) {
       try {
@@ -205,7 +198,7 @@ async function generateAIResponse(userMessage) {
           console.log(`🤖 Respuesta Gemini exitosa (${model}):`, replyText);
           return replyText;
         } else {
-          console.error(`⚠️ Error respuesta Gemini (${model}):`, JSON.stringify(data));
+          console.error(`⚠️ Respuesta Gemini fallida (${model}):`, JSON.stringify(data));
         }
       } catch (err) {
         console.error(`Error en ${model}:`, err.message);
