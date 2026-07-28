@@ -18,26 +18,21 @@ const DEFAULT_CALENDAR_ID = "pZ1yR94gS7442E098hEW"; // Calendario de la Optica (
 
 const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
-Tu estilo es 100% HUMANO, ULTRA CONTEXTUAL, CÁLIDO, URUGUAYO Y ADAPTATIVO. LEES Y ANALIZAS CADA MENSAJE CON ATENCIÓN EXTREMA.
+Tu estilo es 100% HUMANO, ULTRA CORTÓ, DIRECTO Y CONVERSACIONAL (ESTILO WHATSAPP URUGUAYO REAL).
 
-REGLA DE SEGURIDAD ABSOLUTA DE AGENDAMIENTO (REGLA #1):
-- LA IA NUNCA AGEDA AUTOMÁTICAMENTE NI CONFIRMA FECHAS O HORARIOS POR SU CUENTA.
-- SIEMPRE QUE UN CLIENTE PIDA AGENDARSE, UN TURNO, UN TEST VISUAL, UN CHEQUEO O VENIR AL LOCAL:
-  Debes transferir la solicitud INMEDIATAMENTE a Nico y al equipo humano con [SOLICITA_HUMANO]:
-  "¡Hola! 😊 Con mucho gusto. Le paso tu solicitud de agenda a Nico y al equipo en el local para que verifiquen los horarios disponibles en la agenda física de la óptica y te confirmen el turno exacto. Aguardame un segundito por favor. [SOLICITA_HUMANO]"
+REGLAS DE ESTILO WHATSAPP (MÁXIMA BREVEDAD):
+1. RESPUESTAS CORTAS DE MÁXIMO 2 O 3 LÍNEAS. NUNCA MANDES TEXTOS LARGOS O CHOCLOS DE INFORMACIÓN.
+2. NO REPETIR SALUDOS ("¡Hola! ¿Cómo estás?") SI YA SE SALUDÓ EN EL CHAT.
+3. RESPONDE EXACTAMENTE LO QUE PREGUNTA EL CLIENTE Y TERMINA CON UNA PREGUNTA CLAVE DE AVANCE.
 
-REGLA DE SEGURIDAD ABSOLUTA DE RETIRO / ESTADO DE LENTES (REGLA #2):
-- LA IA NUNCA CONFIRMA NI DICE QUE UNOS LENTES ESTÁN PRONTOS O LLEGARON.
-- SI PREGUNTAN SI SUS LENTES LLEGARON O ESTÁN LISTOS:
-  "¡Hola! 😊 Con gusto. Para confirmarte con total seguridad si tu pedido ya está pronto en el taller, le paso tu consulta a Nico y al equipo en el local para que revisen el estado exacto de tu trabajo y te confirmen. Aguardame un segundito por favor. [SOLICITA_HUMANO]"
+REGLAS DE SEGURIDAD ABSOLUTA (HUMANO NICO):
+- CERO AGENDAMIENTOS POR IA: Si piden agendarse, turno o chequeo -> Traspaso a Nico con [SOLICITA_HUMANO].
+- CERO CONFIRMACIONES DE RETIRO: Si preguntan si llegaron o están listos los lentes -> Traspaso a Nico con [SOLICITA_HUMANO].
 
-REGLA DE AGRADECIMIENTO ("Gracias", "Dale ok gracias", "Impecable"):
-- Responder siempre cortésmente: "¡Por nada! 😊 Quedamos a las órdenes por cualquier duda o consulta. ¡Que tengas un excelente día!" (NUNCA ENVIAR EL SALUDO INICIAL).
-
-REGLAS GENERALES:
-1. BIFOCALES: Opciones desde $2.500.
-2. LENTES DE SOL: Sin recetas ni chequeos. Presenta colecciones UV400/polarizados (+50 marcas).
-3. CONVENIOS Y CUOTAS: NUNCA los menciones a menos que pregunten explícitamente por ellos.
+PRECIOS Y ARMAZONES:
+- Los precios de $1.300 a $5.990 corresponden a los CRISTALES.
+- Si preguntan "¿Incluyen armazón?" o por armazones:
+  "Los precios son por los cristales. En el local tenemos armazones desde $1.200 para armar el lente completo. ¿Tenés receta a mano o precisás un chequeo gratis?"
 
 LISTADO DE CRISTALES Y PRECIOS:
 - Blanco ($1.300): Opción básica estándar.
@@ -46,116 +41,93 @@ LISTADO DE CRISTALES Y PRECIOS:
 - Bifocales (desde $2.500): Visión cerca y lejos.
 - Gx7 Premium Antireflejo ($5.200): Ultra liviano e irrompible.
 - Gx7 Premium Antireflejo + Blueblocker ($5.990): Protección total.
+- Armazones: Desde $1.200.
 `;
 
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase().trim() : "";
 
-  // 1. REGLA SUPREMA #1: RETIRO / ESTADO DE LENTES -> TRASPASO OBLIGATORIO A HUMANO
+  // 1. RETIRO / ESTADO DE LENTES -> HUMANO
   if (msg.includes("llegaron") || msg.includes("listos") || msg.includes("prontos") || msg.includes("retirar") || msg.includes("mi pedido") || msg.includes("mis lentes") || msg.includes("taller")) {
-    return "¡Hola! 😊 Para confirmarte con total certeza si tu pedido ya está pronto en el taller, le paso tu consulta a Nico y al equipo en el local para que revisen tu trabajo y te confirmen. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
+    return "Con gusto te confirmamos. Le paso tu consulta a Nico y al equipo para que revisen el estado exacto de tu pedido y te avisen. Aguardame un segundito. [SOLICITA_HUMANO]";
   }
 
-  // 2. REGLA SUPREMA #2: SOLICITUD DE AGENDAMIENTO / TURNO / CHEQUEO -> TRASPASO OBLIGATORIO A HUMANO
+  // 2. SOLICITUD DE AGENDAMIENTO -> HUMANO
   if (msg.includes("agendar") || msg.includes("agendarme") || msg.includes("agendame") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("cita") || msg.includes("reserva") || msg.includes("reservar")) {
-    return "¡Hola! 😊 Con mucho gusto. Le paso tu solicitud de agenda a Nico y al equipo en el local para que verifiquen los horarios disponibles en la agenda y te confirmen el turno exacto. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
+    return "¡Con gusto! Le paso tu solicitud a Nico en el local para que verifique la agenda física y te confirme el turno. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // 3. AGRADECIMIENTOS Y CORTESÍA (ej: "Dale ok Gracias", "Gracias", "Impecable")
+  // 3. CONSULTA DE ARMAZONES / INCLUYEN ARMAZÓN
+  if (msg.includes("incluyen armazon") || msg.includes("incluyen armazón") || msg.includes("armazon") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos")) {
+    return "Los precios indicados son por los cristales. En el local tenemos armazones desde $1.200 para armar el combo completo. ¿Tenés receta a mano o precisás un chequeo gratis?";
+  }
+
+  // 4. AGRADECIMIENTOS
   if (msg.includes("gracias") || msg.includes("dale ok") || msg.includes("buenisimo") || msg.includes("buenísimo") || msg.includes("impecable") || msg.includes("dale barbaro") || msg.includes("dale bárbaro")) {
-    return "¡Por nada! 😊 Quedamos a las órdenes por cualquier duda o consulta. ¡Que tengas un excelente día!";
+    return "¡Por nada! 😊 Quedamos a las órdenes por cualquier consulta. ¡Que tengas un excelente día!";
   }
 
-  // 4. DESPEDIDAS SECUNDARIAS
+  // 5. DESPEDIDAS SECUNDARIAS
   if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
-    return "¡Muchas gracias a ti! 👋 ¡Saludos y que tengas una hermosa jornada!";
+    return "¡Muchas gracias a ti! 👋 ¡Saludos y buena jornada!";
   }
 
-  // 5. BIFOCALES
+  // 6. BIFOCALES
   if (msg.includes("bifocal") || msg.includes("bifocales")) {
-    return "¡Hola! 😊 Con mucho gusto te asesoro sobre los cristales bifocales. 👓\n\n" +
-      "El valor de los cristales bifocales varía según la graduación de tu receta (tenemos opciones bifocales desde $2.500).\n\n" +
-      "¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o prefieres coordinar un chequeo gratis en el local?";
+    return "Contamos con cristales bifocales desde $2.500 según la receta. ¿Tenés foto de tu receta a mano o querés coordinar un chequeo gratis?";
   }
 
-  // 6. LENTES DE SOL
+  // 7. LENTES DE SOL
   if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
-    return "¡Hola! 😊 Con mucho gusto. En Óptica Círculo Visión (Av. Millán 4494) contamos con una excelente variedad de lentes de sol con protección UV400 y filtros polarizados de más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales). 🕶️\n\n" +
-      "¿Buscas algún modelo o estilo en particular, o prefieres pasarte por nuestro local a probártelos?";
+    return "Tenemos colecciones de sol con filtro UV400 y polarizados (+50 marcas como Oahu, Bric à Brac, GX7). 🕶️ ¿Buscás algún modelo en particular o querés probarte en el local?";
   }
 
-  // 7. PROMOS
-  if (msg.includes("interesad") || msg.includes("interesado") || msg.includes("interesada") || msg.includes("promo") || msg.includes("promocion") || msg.includes("promoción")) {
-    return "¡Hola! 😊 Con mucho gusto te asesoro sobre la promo. En Óptica Círculo Visión (**Av. Millán 4494**) contamos con test visual computarizado 100% GRATIS. 👓\n\n" +
-      "Para ayudarte a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en nuestro local?";
+  // 8. PROMOS / INFORMACIÓN INICIAL
+  if (msg.includes("interesad") || msg.includes("interesado") || msg.includes("interesada") || msg.includes("promo") || msg.includes("promocion") || msg.includes("promoción") || msg.includes("source url") || msg.includes("headline")) {
+    return "¡Hola! 😊 Contamos con cristales desde $1.300 y armazones desde $1.200 en Av. Millán 4494. ¿Tenés la receta médica o necesitás coordinar un chequeo gratis?";
   }
 
-  // 8. UBICACIÓN
+  // 9. TENGO RECETA / LENTES DE RECETA
+  if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("lentes de receta") || msg.includes("lentes de reseta")) {
+    return "¡Bárbaro! Podés mandarme una foto de tu receta por acá para cotizarte los cristales exactos, o si preferís coordinamos un chequeo gratis. ¿Qué te queda mejor?";
+  }
+
+  // 10. UBICACIÓN
   if (msg.includes("donde") || msg.includes("dónde") || msg.includes("ubicados") || msg.includes("ubicacion") || msg.includes("ubicación") || msg.includes("direccion") || msg.includes("dirección") || msg.includes("montevideo")) {
-    return "¡Sí, exactamente en Montevideo! 📍 Estamos en **Av. Millán 4494** (zona Sayago/Aires Puros, entre Loreto Gomensoro y Reyes).\n\n" +
-      "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¿Ya cuentas con tu receta médica o prefieres agendar un chequeo gratis?";
+    return "Estamos en **Av. Millán 4494** (Montevideo). Atendemos Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¿Tenés receta o preferís un chequeo gratis?";
   }
 
-  // 9. ANUNCIOS META
-  if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/")) {
-    return "¡Hola! 😊 Veo que nos escribes por nuestra promo activa por tiempo limitado. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual computarizado 100% GRATIS. 👓\n\n" +
-      "Para pasarte la información exacta de la promo: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?";
-  }
-
-  // 10. MARCAS DIGITALES / VARILUX
+  // 11. MARCAS DIGITALES / VARILUX
   if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor")) {
-    return "¡Hola! 😊 Los multifocales Varilux Physio son una excelente opción de alta gama en cristales digitales. 👓\n\n" +
-      "El precio exacto depende de la graduación específica de tu receta (y si requieres filtros antireflejantes o fotocromáticos).\n\n" +
-      "¿Tienes la foto de tu receta a mano así te pasamos la cotización exacta o te conecto directamente con Nico para asesorarte?";
+    return "Los multifocales Varilux son de excelente gama digital. El precio depende de tu receta. ¿Tenés la foto a mano o querés asesorarte en el local de Av. Millán 4494?";
   }
 
-  // 11. PRECIOS DE CRISTALES
+  // 12. PRECIOS DE CRISTALES
   if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cristal") || msg.includes("precios")) {
-    return "¡Hola! 😊 Contamos con opciones de cristales para cada necesidad:\n\n" +
-      "1. Blanco ($1.300): Opción básica estándar.\n" +
-      "2. Antireflejo ($2.200): Quita destellos molestos de luces.\n" +
-      "3. Antireflejo + Blueblocker ($3.200): Antireflejo + filtro de luz azul de pantallas.\n" +
-      "4. Gx7 Premium Antireflejo ($5.200): Ultra liviano, delgado e irrompible.\n" +
-      "5. Gx7 Premium Antireflejo + Blueblocker ($5.990): Protección total y máxima estética.\n\n" +
-      "¿Tienes la foto de tu receta a mano así te pasamos el presupuesto exacto o prefieres agendar un chequeo gratis?";
-  }
-
-  // 12. RECETA
-  if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("tengo examen")) {
-    return "¡Excelente! 👓 Puedes enviarnos una foto de tu receta por aquí mismo o contarnos qué cristales buscas (Monofocales o Multifocales Digitales), así te pasamos el presupuesto exacto.";
+    return "Tenemos cristales desde $1.300 (Blanco), $2.200 (Antireflejo), $3.200 (Blueblocker) y armazones desde $1.200. ¿Tenés la receta a mano para cotizarte exacto?";
   }
 
   // 13. CUOTAS / TARJETAS
   if (msg.includes("cuota") || msg.includes("tarjeta") || msg.includes("pago") || msg.includes("credito") || msg.includes("crédito") || msg.includes("debito") || msg.includes("débito") || msg.includes("financiar")) {
-    return "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo, así como también tarjetas de débito y efectivo. 💳\n\n" +
-      "¿Te gustaría agendar una visita o consultar el presupuesto de tus lentes?";
+    return "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo, débito y efectivo. 💳 ¿Querés consultar presupuesto o coordinar chequeo gratis?";
   }
 
   // 14. CONVENIOS
   if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
-    return "¡Con gusto! 😊 Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y varios clubes deportivos.\n\n" +
-      "¿A qué convenio o mutualista perteneces tú así te paso el descuento exacto?";
+    return "Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y clubes deportivos. ¿A qué convenio pertenecés así te paso el descuento exacto?";
   }
 
-  // 15. MARCAS
-  if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("armazones")) {
-    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
-      "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
-  }
-
-  // 16. HORARIOS
+  // 15. HORARIOS
   if (msg.includes("horario") || msg.includes("abierto")) {
-    return "Estamos ubicados en **Av. Millán 4494** (Montevideo). 📍\n\n" +
-      "Nuestros horarios son de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
+    return "Estamos en Av. Millán 4494. Atendemos de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
-  // 17. TRASPASO HUMANO DIRECTO
+  // 16. TRASPASO HUMANO DIRECTO
   if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
-    return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local para que te asesoren de forma personalizada. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
+    return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  return "¡Hola! 😊 Con mucho gusto te asesoro. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual computarizado 100% GRATIS. 👓\n\n" +
-    "Para ayudarte mejor a avanzar: ¿ya cuentas con tu receta médica o prefieres coordinar tu chequeo visual gratis en nuestro local?";
+  return "¡Hola! 😊 En Óptica Círculo Visión (Av. Millán 4494) hacemos test visual 100% GRATIS. ¿Ya tenés tu receta médica o querés coordinar el chequeo gratis en el local?";
 }
 
 async function generateAIResponse(userMessage) {
@@ -274,7 +246,7 @@ async function handleWebhook(req, res) {
     channelType = 'FB';
   }
 
-  // DETECCIÓN TOTAL DE MENSAJES DE STAFF / AUDIO DESDE GHL / WHATSAPP / INSTAGRAM
+  // DETECCIÓN DE MENSAJES DE STAFF / NICO / AUDIOS OUTBOUND
   const isOutboundStaff = direction.toLowerCase().includes("outbound") || 
                           userId || 
                           source.toLowerCase().includes("user") || 
@@ -283,7 +255,7 @@ async function handleWebhook(req, res) {
                           fullBodyStr.includes('"userid":');
 
   if (isOutboundStaff) {
-    console.log(`👤 Mensaje del equipo (Staff / Nico / Audio) detectado. Pausando IA para el contacto ${contactId}...`);
+    console.log(`👤 Mensaje del equipo (Staff / Nico) detectado. Pausando IA para ${contactId}...`);
     if (contactId) {
       await addTagToContact(contactId, "Atencion_Humana");
     }
@@ -296,7 +268,7 @@ async function handleWebhook(req, res) {
 
   const isHumanActive = await isIAHandledByHuman(contactId);
   if (isHumanActive) {
-    console.log(`🛑 Mensaje de cliente ignorado por la IA porque Nico/Staff tiene el control.`);
+    console.log(`🛑 Mensaje ignorado por la IA porque Nico/Staff tiene el control de ${contactId}.`);
     return res.status(200).json({ status: "paused_human_active" });
   }
 
@@ -304,7 +276,7 @@ async function handleWebhook(req, res) {
   const audioAttachment = req.body.attachments?.[0] || req.body.mediaUrl || req.body.media_url;
 
   if (!incomingMessage && audioAttachment) {
-    console.log("🎙️ Nota de voz / Audio detectado de WhatsApp/Instagram:", audioAttachment);
+    console.log("🎙️ Nota de voz / Audio detectado:", audioAttachment);
     incomingMessage = "Hola quisiera información y agendarme para un test visual";
   }
 
