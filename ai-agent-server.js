@@ -31,7 +31,7 @@ REGLAS DE SEGURIDAD ABSOLUTA (HUMANO NICO):
 
 PRECIOS Y ARMAZONES:
 - Los precios de $1.300 a $5.990 corresponden a los CRISTALES.
-- Si preguntan "¿Incluyen armazón?" o por armazones:
+- Si preguntan "Incluyen armazón?", por armazones o lentes completos:
   "Los precios son por los cristales. En el local tenemos armazones desde $1.200 para armar el lente completo. ¿Tenés receta a mano o precisás un chequeo gratis?"
 
 LISTADO DE CRISTALES Y PRECIOS:
@@ -57,8 +57,8 @@ function getSmartResponse(userMessage) {
     return "¡Con gusto! Le paso tu solicitud a Nico en el local para que verifique la agenda física y te confirme el turno. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // 3. CONSULTA DE ARMAZONES / INCLUYEN ARMAZÓN
-  if (msg.includes("incluyen armazon") || msg.includes("incluyen armazón") || msg.includes("armazon") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos")) {
+  // 3. CONSULTA DE ARMAZONES / INCLUYEN ARMAZÓN (Acepta cualquier variante como 'armazon', 'armazón', 'marco')
+  if (msg.includes("armazon") || msg.includes("armazón") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos") || msg.includes("incuyen") || msg.includes("incluyen")) {
     return "Los precios indicados son por los cristales. En el local tenemos armazones desde $1.200 para armar el combo completo. ¿Tenés receta a mano o precisás un chequeo gratis?";
   }
 
@@ -117,12 +117,18 @@ function getSmartResponse(userMessage) {
     return "Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y clubes deportivos. ¿A qué convenio pertenecés así te paso el descuento exacto?";
   }
 
-  // 15. HORARIOS
+  // 15. MARCAS
+  if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("armazones")) {
+    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
+      "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
+  }
+
+  // 16. HORARIOS
   if (msg.includes("horario") || msg.includes("abierto")) {
     return "Estamos en Av. Millán 4494. Atendemos de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
   }
 
-  // 16. TRASPASO HUMANO DIRECTO
+  // 17. TRASPASO HUMANO DIRECTO
   if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
     return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
