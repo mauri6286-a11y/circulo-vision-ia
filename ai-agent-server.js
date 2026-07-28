@@ -1,5 +1,8 @@
 import express from 'express';
 import dotenv from 'dotenv';
+import { db } from './database.js';
+import { StateMachine } from './state-machine.js';
+
 dotenv.config();
 
 const app = express();
@@ -8,226 +11,14 @@ app.use(express.urlencoded({ extended: true }));
 
 const GHL_TOKEN = process.env.GHL_PRIVATE_TOKEN;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.PALM_API_KEY;
-
 const NICO_USER_ID = "Dm9trLIiq2sJmRCsgqrH"; // ID de Nico
 const PIPELINE_ID = "wyP2TvxIOaDFD6g5jz4s"; // Pipeline de Ventas - Óptica Círculo Visión
 const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead
-const STAGE_AGENDA = "1ee9cfbd-9b2f-4bdb-a558-89fb668b32d0"; // 6. Agenda
-const DEFAULT_CALENDAR_ID = "pZ1yR94gS7442E098hEW"; // Calendario de la Optica (ACTIVO)
-
-const SYSTEM_PROMPT = `
-Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
-Tu estilo es 100% HUMANO, ULTRA CORTÓ, DIRECTO Y CONVERSACIONAL (ESTILO WHATSAPP URUGUAYO REAL).
-
-REGLAS DE ESTILO WHATSAPP (MÁXIMA BREVEDAD):
-1. RESPUESTAS CORTAS DE MÁXIMO 2 O 3 LÍNEAS. NUNCA MANDES TEXTOS LARGOS O CHOCLOS DE INFORMACIÓN.
-2. NO REPETIR SALUDOS ("¡Hola! ¿Cómo estás?") SI YA SE SALUDÓ EN EL HISTORIAL DEL CHAT.
-3. RESPONDE EXACTAMENTE LO QUE PREGUNTA EL CLIENTE Y TERMINA CON UNA PREGUNTA CLAVE DE AVANCE.
-
-REGLA DE ORO DE RESPUESTA A PROMOS / ANUNCIOS:
-- NUNCA MANDES LA LISTA DE PRECIOS DE ENTRADA A MENOS QUE EL CLIENTE PREGUNTE EXPLÍCITAMENTE POR PRECIOS O COTIZACIONES.
-- Cuando escriban por un anuncio ("Quiero más información"):
-  "¡Hola! 😊 Con mucho gusto te cuento sobre la promo. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS. ¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"
-
-ACLARACIÓN ESTRICTA DE CRISTALES VS ARMAZONES:
-- SI PREGUNTAN POR PRECIOS O ARMAZONES, aclara SIEMPRE que los cristales van desde $1.300 a $5.990 y los armazones desde $1.200 para armar el combo completo.
-
-REGLAS DE SEGURIDAD ABSOLUTA (HUMANO NICO):
-- CERO AGENDAMIENTOS POR IA: Si piden agendarse, turno o chequeo -> Traspaso a Nico con [SOLICITA_HUMANO].
-- CERO CONFIRMACIONES DE RETIRO: Si preguntan si llegaron o están listos los lentes -> Traspaso a Nico con [SOLICITA_HUMANO].
-
-CONVENIOS Y CUOTAS: NUNCA los menciones a menos que pregunten explícitamente por ellos.
-`;
-
-async function getRecentConversationHistory(contactId) {
-  try {
-    const searchRes = await fetch(`https://services.leadconnectorhq.com/conversations/search?locationId=${GHL_LOCATION_ID}&contactId=${contactId}`, {
-      headers: {
-        'Authorization': `Bearer ${GHL_TOKEN}`,
-        'Version': '2021-07-28',
-        'Accept': 'application/json'
-      }
-    });
-    if (!searchRes.ok) return [];
-    const searchData = await searchRes.json();
-    const convId = searchData.conversations?.[0]?.id;
-    if (!convId) return [];
-
-    const msgRes = await fetch(`https://services.leadconnectorhq.com/conversations/${convId}/messages?limit=6`, {
-      headers: {
-        'Authorization': `Bearer ${GHL_TOKEN}`,
-        'Version': '2021-07-28',
-        'Accept': 'application/json'
-      }
-    });
-    if (!msgRes.ok) return [];
-    const msgData = await msgRes.json();
-    const rawMsgs = msgData.messages?.messages || [];
-
-    // Formatear historial para Gemini (antiguos a recientes)
-    const formatted = [];
-    for (const m of rawMsgs.reverse()) {
-      const text = m.body || m.text || "";
-      if (!text || text.includes("[SOLICITA_HUMANO]")) continue;
-      const role = (m.direction === 'inbound') ? 'user' : 'model';
-      formatted.push({ role, parts: [{ text }] });
-    }
-    return formatted;
-  } catch (e) {
-    console.error("Error obteniendo historial de chat:", e.message);
-    return [];
-  }
-}
-
-function getSmartResponse(userMessage) {
-  const msg = userMessage ? userMessage.toLowerCase().trim() : "";
-
-  // 1. RETIRO / ESTADO DE LENTES -> HUMANO
-  if (msg.includes("llegaron") || msg.includes("listos") || msg.includes("prontos") || msg.includes("retirar") || msg.includes("mi pedido") || msg.includes("mis lentes") || msg.includes("taller")) {
-    return "Con gusto te confirmamos. Le paso tu consulta a Nico y al equipo para que revisen el estado exacto de tu pedido y te avisen. Aguardame un segundito. [SOLICITA_HUMANO]";
-  }
-
-  // 2. SOLICITUD DE AGENDAMIENTO -> HUMANO
-  if (msg.includes("agendar") || msg.includes("agendarme") || msg.includes("agendame") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("cita") || msg.includes("reserva") || msg.includes("reservar")) {
-    return "¡Con gusto! Le paso tu solicitud a Nico en el local para que verifique la agenda física y te confirme el turno. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
-  }
-
-  // 3. RESPUESTA A PROMOS / ANUNCIOS DE META / INSTAGRAM / FB (SIN VOLCAR PRECIOS DE ENTRADA)
-  if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/") || (msg.includes("promo") && !msg.includes("precio"))) {
-    return "¡Hola! 😊 Veo que nos escribes por nuestra promo activa. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS. ¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?";
-  }
-
-  // 4. CONSULTA DE ARMAZONES / INCLUYEN ARMAZÓN
-  if (msg.includes("armazon") || msg.includes("armazón") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos") || msg.includes("incuyen") || msg.includes("incluyen")) {
-    return "Los precios indicados son por los cristales. En el local tenemos armazones desde $1.200 para armar el combo completo. ¿Tenés receta a mano o precisás un chequeo gratis?";
-  }
-
-  // 5. SOLO SI PREGUNTAN EXPLÍCITAMENTE POR PRECIOS O COTIZACIONES
-  if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cristal") || msg.includes("precios") || msg.includes("cotiz")) {
-    return "Tenemos cristales desde $1.300 (Blanco), $2.200 (Antireflejo), $3.200 (Blueblocker) y armazones desde $1.200 para armar el lente completo. ¿Tenés la receta a mano para cotizarte exacto?";
-  }
-
-  // 6. AGRADECIMIENTOS
-  if (msg.includes("gracias") || msg.includes("dale ok") || msg.includes("buenisimo") || msg.includes("buenísimo") || msg.includes("impecable") || msg.includes("dale barbaro") || msg.includes("dale bárbaro")) {
-    return "¡Por nada! 😊 Quedamos a las órdenes por cualquier consulta. ¡Que tengas un excelente día!";
-  }
-
-  // 7. DESPEDIDAS SECUNDARIAS
-  if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
-    return "¡Muchas gracias a ti! 👋 ¡Saludos y buena jornada!";
-  }
-
-  // 8. BIFOCALES
-  if (msg.includes("bifocal") || msg.includes("bifocales")) {
-    return "Contamos con cristales bifocales desde $2.500 (cristal solo, armazones desde $1.200). ¿Tenés foto de tu receta a mano o querés coordinar un chequeo gratis?";
-  }
-
-  // 9. LENTES DE SOL
-  if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
-    return "Tenemos colecciones de sol con filtro UV400 y polarizados (+50 marcas como Oahu, Bric à Brac, GX7). 🕶️ ¿Buscás algún modelo en particular o querés probarte en el local?";
-  }
-
-  // 10. TENGO RECETA / LENTES DE RECETA
-  if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("lentes de receta") || msg.includes("lentes de reseta")) {
-    return "¡Bárbaro! Podés mandarme una foto de tu receta por acá para cotizarte los cristales exactos, o si preferís coordinamos un chequeo gratis. ¿Qué te queda mejor?";
-  }
-
-  // 11. UBICACIÓN
-  if (msg.includes("donde") || msg.includes("dónde") || msg.includes("ubicados") || msg.includes("ubicacion") || msg.includes("ubicación") || msg.includes("direccion") || msg.includes("dirección") || msg.includes("montevideo")) {
-    return "Estamos en **Av. Millán 4494** (Montevideo). Atendemos Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¿Tenés receta o preferís un chequeo gratis?";
-  }
-
-  // 12. MARCAS DIGITALES / VARILUX
-  if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor")) {
-    return "Los multifocales Varilux son de excelente gama digital. El precio depende de tu receta. ¿Tenés la foto a mano o querés asesorarte en el local de Av. Millán 4494?";
-  }
-
-  // 13. CUOTAS / TARJETAS
-  if (msg.includes("cuota") || msg.includes("tarjeta") || msg.includes("pago") || msg.includes("credito") || msg.includes("crédito") || msg.includes("debito") || msg.includes("débito") || msg.includes("financiar")) {
-    return "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo, débito y efectivo. 💳 ¿Querés consultar presupuesto o coordinar chequeo gratis?";
-  }
-
-  // 14. CONVENIOS
-  if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico")) {
-    return "Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y clubes deportivos. ¿A qué convenio pertenecés así te paso el descuento exacto?";
-  }
-
-  // 15. MARCAS
-  if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("armazones")) {
-    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales). ¿Buscas alguna marca en particular?";
-  }
-
-  // 16. HORARIOS
-  if (msg.includes("horario") || msg.includes("abierto")) {
-    return "Estamos en Av. Millán 4494. Atendemos de Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¡Te esperamos cuando gustes!";
-  }
-
-  // 17. TRASPASO HUMANO DIRECTO
-  if (msg.includes("nico") || msg.includes("humano") || msg.includes("persona") || msg.includes("hablar") || msg.includes("stock")) {
-    return "¡Con gusto! Te conecto directamente con Nico y nuestro equipo en el local. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
-  }
-
-  return "¡Hola! 😊 En Óptica Círculo Visión (Av. Millán 4494) hacemos test visual 100% GRATIS. ¿Ya tenés tu receta médica o querés coordinar el chequeo gratis en el local?";
-}
-
-async function generateAIResponse(contactId, userMessage) {
-  console.log(`💬 Procesando mensaje omnicanal para ${contactId}: "${userMessage}"`);
-
-  // 1. Obtener historial reciente de GoHighLevel para darle MEMORIA CONTINUA a la IA
-  const chatHistory = await getRecentConversationHistory(contactId);
-
-  if (GEMINI_API_KEY && GEMINI_API_KEY.length > 10) {
-    const models = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
-
-    const contentsPayload = [
-      { role: 'user', parts: [{ text: `INSTRUCCIONES DEL SISTEMA:\n${SYSTEM_PROMPT}` }] },
-      { role: 'model', parts: [{ text: "Entendido. Sigo todas las reglas del sistema y mantengo respuestas ultra-cortas en uruguayo." }] },
-      ...chatHistory
-    ];
-
-    // Asegurar que el último mensaje del cliente esté al final
-    if (formattedLastMessageNotPresent(contentsPayload, userMessage)) {
-      contentsPayload.push({ role: 'user', parts: [{ text: userMessage }] });
-    }
-
-    for (const model of models) {
-      try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY.trim()}`;
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'X-goog-api-key': GEMINI_API_KEY.trim()
-          },
-          body: JSON.stringify({ contents: contentsPayload })
-        });
-
-        const data = await res.json();
-
-        if (res.ok && data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
-          const replyText = data.candidates[0].content.parts[0].text.trim();
-          console.log(`🤖 Respuesta Gemini con MEMORIA (${model}):`, replyText);
-          return replyText;
-        } else {
-          console.error(`⚠️ Respuesta Gemini fallida (${model}):`, JSON.stringify(data));
-        }
-      } catch (err) {
-        console.error(`Error en ${model}:`, err.message);
-      }
-    }
-  }
-
-  return getSmartResponse(userMessage);
-}
-
-function formattedLastMessageNotPresent(payload, msg) {
-  if (payload.length === 0) return true;
-  const last = payload[payload.length - 1];
-  return !(last.role === 'user' && last.parts[0].text === msg);
-}
 
 async function isIAHandledByHuman(contactId) {
+  const contactLocal = db.getContact(contactId);
+  if (contactLocal.ia_pausada) return true;
+
   try {
     const res = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, {
       headers: {
@@ -247,7 +38,7 @@ async function isIAHandledByHuman(contactId) {
     });
 
     if (isPaused) {
-      console.log(`⏸️ IA Pausada para ${contactId} (Etiquetas: ${tags.join(', ')})`);
+      db.setIAPaused(contactId, true);
     }
     return isPaused;
   } catch (e) {
@@ -305,7 +96,7 @@ async function handleWebhook(req, res) {
     channelType = 'FB';
   }
 
-  // DETECCIÓN DE MENSAJES DE STAFF / NICO / AUDIOS OUTBOUND
+  // 1. DETECCIÓN DE MENSAJES DE STAFF / NICO / AUDIOS OUTBOUND
   const isOutboundStaff = direction.toLowerCase().includes("outbound") || 
                           userId || 
                           source.toLowerCase().includes("user") || 
@@ -316,6 +107,8 @@ async function handleWebhook(req, res) {
   if (isOutboundStaff) {
     console.log(`👤 Mensaje del equipo (Staff / Nico) detectado. Pausando IA para ${contactId}...`);
     if (contactId) {
+      db.setIAPaused(contactId, true);
+      db.addMessage(contactId, 'staff', 'Mensaje/Audio del equipo humano');
       await addTagToContact(contactId, "Atencion_Humana");
     }
     return res.status(200).json({ status: "staff_message_detected_ia_paused" });
@@ -325,6 +118,7 @@ async function handleWebhook(req, res) {
     return res.status(200).json({ status: "ignored" });
   }
 
+  // 2. VERIFICACIÓN EN BASE DE DATOS Y GHL SI LA IA ESTÁ PAUSADA
   const isHumanActive = await isIAHandledByHuman(contactId);
   if (isHumanActive) {
     console.log(`🛑 Mensaje ignorado por la IA porque Nico/Staff tiene el control de ${contactId}.`);
@@ -343,26 +137,40 @@ async function handleWebhook(req, res) {
   const lastName = req.body.last_name || req.body.contact?.last_name || "";
   const contactName = `${firstName} ${lastName}`.trim();
 
+  // Registrar cliente y mensaje en Base de Datos Local
+  db.getContact(contactId);
+  db.addMessage(contactId, 'cliente', incomingMessage);
+
   await ensureOpportunityAndAssignToNico(contactId, contactName);
 
-  const aiReply = await generateAIResponse(contactId, incomingMessage);
+  // 3. EVALUACIÓN DE MÁQUINA DE ESTADOS
+  const stateResult = StateMachine.processMessage(contactId, incomingMessage);
 
-  if (aiReply.includes("[SOLICITA_HUMANO]")) {
-    const cleanReply = aiReply.replace("[SOLICITA_HUMANO]", "").trim();
+  if (stateResult.action === 'IGNORE_HUMAN_ACTIVE') {
+    return res.status(200).json({ status: "paused_human_active" });
+  }
+
+  const replyText = stateResult.reply;
+
+  if (stateResult.action === 'HANDOFF_HUMAN') {
+    const cleanReply = replyText.replace("[SOLICITA_HUMANO]", "").trim();
     await sendGHLMessage(contactId, cleanReply, channelType);
     await addTagToContact(contactId, "Atencion_Humana");
+    db.setIAPaused(contactId, true);
+    db.addMessage(contactId, 'ia', cleanReply);
     return res.json({ status: "handoff_to_human", reply: cleanReply });
   }
 
-  await sendGHLMessage(contactId, aiReply, channelType);
-  res.json({ status: "success", channel: channelType, reply: aiReply });
+  await sendGHLMessage(contactId, replyText, channelType);
+  db.addMessage(contactId, 'ia', replyText);
+  res.json({ status: "success", channel: channelType, reply: replyText });
 }
 
 app.post('/webhook/ghl-message', handleWebhook);
 app.post('/', handleWebhook);
 
 app.get('/', (req, res) => {
-  res.send("🚀 Servidor de Agente IA Omnicanal Círculo Visión activo 24/7.");
+  res.send("🚀 Servidor de Agente IA Omnicanal Círculo Visión activo 24/7 con Base de Datos Local.");
 });
 
 async function sendGHLMessage(contactId, messageText, channelType = 'WhatsApp') {
