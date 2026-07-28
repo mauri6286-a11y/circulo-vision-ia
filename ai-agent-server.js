@@ -20,13 +20,18 @@ const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
 Tu estilo es 100% HUMANO, ULTRA CORTÓ, DIRECTO Y CONVERSACIONAL (ESTILO WHATSAPP URUGUAYO REAL).
 
+REGLAS DE ESTILO WHATSAPP (MÁXIMA BREVEDAD):
+1. RESPUESTAS CORTAS DE MÁXIMO 2 O 3 LÍNEAS. NUNCA MANDES TEXTOS LARGOS O CHOCLOS DE INFORMACIÓN.
+2. NO REPETIR SALUDOS ("¡Hola! ¿Cómo estás?") SI YA SE SALUDÓ EN EL HISTORIAL DEL CHAT.
+3. RESPONDE EXACTAMENTE LO QUE PREGUNTA EL CLIENTE Y TERMINA CON UNA PREGUNTA CLAVE DE AVANCE.
+
 REGLA DE ORO DE RESPUESTA A PROMOS / ANUNCIOS:
 - NUNCA MANDES LA LISTA DE PRECIOS DE ENTRADA A MENOS QUE EL CLIENTE PREGUNTE EXPLÍCITAMENTE POR PRECIOS O COTIZACIONES.
 - Cuando escriban por un anuncio ("Quiero más información"):
   "¡Hola! 😊 Con mucho gusto te cuento sobre la promo. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS. ¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"
 
 ACLARACIÓN ESTRICTA DE CRISTALES VS ARMAZONES:
-- SI PREGUNTAN POR PRECIOS, aclara SIEMPRE que los cristales van desde $1.300 a $5.990 y los armazones desde $1.200 para armar el combo completo.
+- SI PREGUNTAN POR PRECIOS O ARMAZONES, aclara SIEMPRE que los cristales van desde $1.300 a $5.990 y los armazones desde $1.200 para armar el combo completo.
 
 REGLAS DE SEGURIDAD ABSOLUTA (HUMANO NICO):
 - CERO AGENDAMIENTOS POR IA: Si piden agendarse, turno o chequeo -> Traspaso a Nico con [SOLICITA_HUMANO].
@@ -34,6 +39,46 @@ REGLAS DE SEGURIDAD ABSOLUTA (HUMANO NICO):
 
 CONVENIOS Y CUOTAS: NUNCA los menciones a menos que pregunten explícitamente por ellos.
 `;
+
+async function getRecentConversationHistory(contactId) {
+  try {
+    const searchRes = await fetch(`https://services.leadconnectorhq.com/conversations/search?locationId=${GHL_LOCATION_ID}&contactId=${contactId}`, {
+      headers: {
+        'Authorization': `Bearer ${GHL_TOKEN}`,
+        'Version': '2021-07-28',
+        'Accept': 'application/json'
+      }
+    });
+    if (!searchRes.ok) return [];
+    const searchData = await searchRes.json();
+    const convId = searchData.conversations?.[0]?.id;
+    if (!convId) return [];
+
+    const msgRes = await fetch(`https://services.leadconnectorhq.com/conversations/${convId}/messages?limit=6`, {
+      headers: {
+        'Authorization': `Bearer ${GHL_TOKEN}`,
+        'Version': '2021-07-28',
+        'Accept': 'application/json'
+      }
+    });
+    if (!msgRes.ok) return [];
+    const msgData = await msgRes.json();
+    const rawMsgs = msgData.messages?.messages || [];
+
+    // Formatear historial para Gemini (antiguos a recientes)
+    const formatted = [];
+    for (const m of rawMsgs.reverse()) {
+      const text = m.body || m.text || "";
+      if (!text || text.includes("[SOLICITA_HUMANO]")) continue;
+      const role = (m.direction === 'inbound') ? 'user' : 'model';
+      formatted.push({ role, parts: [{ text }] });
+    }
+    return formatted;
+  } catch (e) {
+    console.error("Error obteniendo historial de chat:", e.message);
+    return [];
+  }
+}
 
 function getSmartResponse(userMessage) {
   const msg = userMessage ? userMessage.toLowerCase().trim() : "";
@@ -126,11 +171,25 @@ function getSmartResponse(userMessage) {
   return "¡Hola! 😊 En Óptica Círculo Visión (Av. Millán 4494) hacemos test visual 100% GRATIS. ¿Ya tenés tu receta médica o querés coordinar el chequeo gratis en el local?";
 }
 
-async function generateAIResponse(userMessage) {
-  console.log(`💬 Procesando mensaje omnicanal: "${userMessage}"`);
+async function generateAIResponse(contactId, userMessage) {
+  console.log(`💬 Procesando mensaje omnicanal para ${contactId}: "${userMessage}"`);
+
+  // 1. Obtener historial reciente de GoHighLevel para darle MEMORIA CONTINUA a la IA
+  const chatHistory = await getRecentConversationHistory(contactId);
 
   if (GEMINI_API_KEY && GEMINI_API_KEY.length > 10) {
     const models = ['gemini-flash-latest', 'gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
+
+    const contentsPayload = [
+      { role: 'user', parts: [{ text: `INSTRUCCIONES DEL SISTEMA:\n${SYSTEM_PROMPT}` }] },
+      { role: 'model', parts: [{ text: "Entendido. Sigo todas las reglas del sistema y mantengo respuestas ultra-cortas en uruguayo." }] },
+      ...chatHistory
+    ];
+
+    // Asegurar que el último mensaje del cliente esté al final
+    if (formattedLastMessageNotPresent(contentsPayload, userMessage)) {
+      contentsPayload.push({ role: 'user', parts: [{ text: userMessage }] });
+    }
 
     for (const model of models) {
       try {
@@ -141,16 +200,14 @@ async function generateAIResponse(userMessage) {
             'Content-Type': 'application/json',
             'X-goog-api-key': GEMINI_API_KEY.trim()
           },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: `${SYSTEM_PROMPT}\n\nMensaje del cliente: "${userMessage}"` }] }]
-          })
+          body: JSON.stringify({ contents: contentsPayload })
         });
 
         const data = await res.json();
 
         if (res.ok && data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
           const replyText = data.candidates[0].content.parts[0].text.trim();
-          console.log(`🤖 Respuesta Gemini exitosa (${model}):`, replyText);
+          console.log(`🤖 Respuesta Gemini con MEMORIA (${model}):`, replyText);
           return replyText;
         } else {
           console.error(`⚠️ Respuesta Gemini fallida (${model}):`, JSON.stringify(data));
@@ -162,6 +219,12 @@ async function generateAIResponse(userMessage) {
   }
 
   return getSmartResponse(userMessage);
+}
+
+function formattedLastMessageNotPresent(payload, msg) {
+  if (payload.length === 0) return true;
+  const last = payload[payload.length - 1];
+  return !(last.role === 'user' && last.parts[0].text === msg);
 }
 
 async function isIAHandledByHuman(contactId) {
@@ -282,7 +345,7 @@ async function handleWebhook(req, res) {
 
   await ensureOpportunityAndAssignToNico(contactId, contactName);
 
-  const aiReply = await generateAIResponse(incomingMessage);
+  const aiReply = await generateAIResponse(contactId, incomingMessage);
 
   if (aiReply.includes("[SOLICITA_HUMANO]")) {
     const cleanReply = aiReply.replace("[SOLICITA_HUMANO]", "").trim();
