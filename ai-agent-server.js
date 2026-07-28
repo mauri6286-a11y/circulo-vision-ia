@@ -20,28 +20,19 @@ const SYSTEM_PROMPT = `
 Eres la Asistente Virtual Inteligente y Ejecutiva Comercial de Óptica Círculo Visión (Av. Millán 4494, Montevideo).
 Tu estilo es 100% HUMANO, ULTRA CORTÓ, DIRECTO Y CONVERSACIONAL (ESTILO WHATSAPP URUGUAYO REAL).
 
-REGLAS DE ESTILO WHATSAPP (MÁXIMA BREVEDAD):
-1. RESPUESTAS CORTAS DE MÁXIMO 2 O 3 LÍNEAS. NUNCA MANDES TEXTOS LARGOS O CHOCLOS DE INFORMACIÓN.
-2. NO REPETIR SALUDOS ("¡Hola! ¿Cómo estás?") SI YA SE SALUDÓ EN EL CHAT.
-3. RESPONDE EXACTAMENTE LO QUE PREGUNTA EL CLIENTE Y TERMINA CON UNA PREGUNTA CLAVE DE AVANCE.
+REGLA DE ORO DE RESPUESTA A PROMOS / ANUNCIOS:
+- NUNCA MANDES LA LISTA DE PRECIOS DE ENTRADA A MENOS QUE EL CLIENTE PREGUNTE EXPLÍCITAMENTE POR PRECIOS O COTIZACIONES.
+- Cuando escriban por un anuncio ("Quiero más información"):
+  "¡Hola! 😊 Con mucho gusto te cuento sobre la promo. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS. ¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"
+
+ACLARACIÓN ESTRICTA DE CRISTALES VS ARMAZONES:
+- SI PREGUNTAN POR PRECIOS, aclara SIEMPRE que los cristales van desde $1.300 a $5.990 y los armazones desde $1.200 para armar el combo completo.
 
 REGLAS DE SEGURIDAD ABSOLUTA (HUMANO NICO):
 - CERO AGENDAMIENTOS POR IA: Si piden agendarse, turno o chequeo -> Traspaso a Nico con [SOLICITA_HUMANO].
 - CERO CONFIRMACIONES DE RETIRO: Si preguntan si llegaron o están listos los lentes -> Traspaso a Nico con [SOLICITA_HUMANO].
 
-PRECIOS Y ARMAZONES:
-- Los precios de $1.300 a $5.990 corresponden a los CRISTALES.
-- Si preguntan "Incluyen armazón?", por armazones o lentes completos:
-  "Los precios son por los cristales. En el local tenemos armazones desde $1.200 para armar el lente completo. ¿Tenés receta a mano o precisás un chequeo gratis?"
-
-LISTADO DE CRISTALES Y PRECIOS:
-- Blanco ($1.300): Opción básica estándar.
-- Antireflejo ($2.200): Quita destellos molestos.
-- Antireflejo + Blueblocker ($3.200): Filtro luz azul de pantallas.
-- Bifocales (desde $2.500): Visión cerca y lejos.
-- Gx7 Premium Antireflejo ($5.200): Ultra liviano e irrompible.
-- Gx7 Premium Antireflejo + Blueblocker ($5.990): Protección total.
-- Armazones: Desde $1.200.
+CONVENIOS Y CUOTAS: NUNCA los menciones a menos que pregunten explícitamente por ellos.
 `;
 
 function getSmartResponse(userMessage) {
@@ -57,54 +48,54 @@ function getSmartResponse(userMessage) {
     return "¡Con gusto! Le paso tu solicitud a Nico en el local para que verifique la agenda física y te confirme el turno. Aguardame un segundito por favor. [SOLICITA_HUMANO]";
   }
 
-  // 3. CONSULTA DE ARMAZONES / INCLUYEN ARMAZÓN (Acepta cualquier variante como 'armazon', 'armazón', 'marco')
+  // 3. RESPUESTA A PROMOS / ANUNCIOS DE META / INSTAGRAM / FB (SIN VOLCAR PRECIOS DE ENTRADA)
+  if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/") || (msg.includes("promo") && !msg.includes("precio"))) {
+    return "¡Hola! 😊 Veo que nos escribes por nuestra promo activa. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS. ¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?";
+  }
+
+  // 4. CONSULTA DE ARMAZONES / INCLUYEN ARMAZÓN
   if (msg.includes("armazon") || msg.includes("armazón") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos") || msg.includes("incuyen") || msg.includes("incluyen")) {
     return "Los precios indicados son por los cristales. En el local tenemos armazones desde $1.200 para armar el combo completo. ¿Tenés receta a mano o precisás un chequeo gratis?";
   }
 
-  // 4. AGRADECIMIENTOS
+  // 5. SOLO SI PREGUNTAN EXPLÍCITAMENTE POR PRECIOS O COTIZACIONES
+  if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cristal") || msg.includes("precios") || msg.includes("cotiz")) {
+    return "Tenemos cristales desde $1.300 (Blanco), $2.200 (Antireflejo), $3.200 (Blueblocker) y armazones desde $1.200 para armar el lente completo. ¿Tenés la receta a mano para cotizarte exacto?";
+  }
+
+  // 6. AGRADECIMIENTOS
   if (msg.includes("gracias") || msg.includes("dale ok") || msg.includes("buenisimo") || msg.includes("buenísimo") || msg.includes("impecable") || msg.includes("dale barbaro") || msg.includes("dale bárbaro")) {
     return "¡Por nada! 😊 Quedamos a las órdenes por cualquier consulta. ¡Que tengas un excelente día!";
   }
 
-  // 5. DESPEDIDAS SECUNDARIAS
+  // 7. DESPEDIDAS SECUNDARIAS
   if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
     return "¡Muchas gracias a ti! 👋 ¡Saludos y buena jornada!";
   }
 
-  // 6. BIFOCALES
+  // 8. BIFOCALES
   if (msg.includes("bifocal") || msg.includes("bifocales")) {
-    return "Contamos con cristales bifocales desde $2.500 según la receta. ¿Tenés foto de tu receta a mano o querés coordinar un chequeo gratis?";
+    return "Contamos con cristales bifocales desde $2.500 (cristal solo, armazones desde $1.200). ¿Tenés foto de tu receta a mano o querés coordinar un chequeo gratis?";
   }
 
-  // 7. LENTES DE SOL
+  // 9. LENTES DE SOL
   if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
     return "Tenemos colecciones de sol con filtro UV400 y polarizados (+50 marcas como Oahu, Bric à Brac, GX7). 🕶️ ¿Buscás algún modelo en particular o querés probarte en el local?";
   }
 
-  // 8. PROMOS / INFORMACIÓN INICIAL
-  if (msg.includes("interesad") || msg.includes("interesado") || msg.includes("interesada") || msg.includes("promo") || msg.includes("promocion") || msg.includes("promoción") || msg.includes("source url") || msg.includes("headline")) {
-    return "¡Hola! 😊 Contamos con cristales desde $1.300 y armazones desde $1.200 en Av. Millán 4494. ¿Tenés la receta médica o necesitás coordinar un chequeo gratis?";
-  }
-
-  // 9. TENGO RECETA / LENTES DE RECETA
+  // 10. TENGO RECETA / LENTES DE RECETA
   if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("lentes de receta") || msg.includes("lentes de reseta")) {
     return "¡Bárbaro! Podés mandarme una foto de tu receta por acá para cotizarte los cristales exactos, o si preferís coordinamos un chequeo gratis. ¿Qué te queda mejor?";
   }
 
-  // 10. UBICACIÓN
+  // 11. UBICACIÓN
   if (msg.includes("donde") || msg.includes("dónde") || msg.includes("ubicados") || msg.includes("ubicacion") || msg.includes("ubicación") || msg.includes("direccion") || msg.includes("dirección") || msg.includes("montevideo")) {
     return "Estamos en **Av. Millán 4494** (Montevideo). Atendemos Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs. ¿Tenés receta o preferís un chequeo gratis?";
   }
 
-  // 11. MARCAS DIGITALES / VARILUX
+  // 12. MARCAS DIGITALES / VARILUX
   if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor")) {
     return "Los multifocales Varilux son de excelente gama digital. El precio depende de tu receta. ¿Tenés la foto a mano o querés asesorarte en el local de Av. Millán 4494?";
-  }
-
-  // 12. PRECIOS DE CRISTALES
-  if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cristal") || msg.includes("precios")) {
-    return "Tenemos cristales desde $1.300 (Blanco), $2.200 (Antireflejo), $3.200 (Blueblocker) y armazones desde $1.200. ¿Tenés la receta a mano para cotizarte exacto?";
   }
 
   // 13. CUOTAS / TARJETAS
@@ -119,8 +110,7 @@ function getSmartResponse(userMessage) {
 
   // 15. MARCAS
   if (msg.includes("marca") || msg.includes("modelo") || msg.includes("armazon") || msg.includes("armazones")) {
-    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales).\n\n" +
-      "¿Buscas alguna marca o modelo en particular así te confirmo disponibilidad?";
+    return "¡Hola! 😊 Trabajamos con más de 50 marcas de primer nivel (como Oahu, Bric à Brac, GX7 e internacionales). ¿Buscas alguna marca en particular?";
   }
 
   // 16. HORARIOS
