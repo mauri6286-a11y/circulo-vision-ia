@@ -16,6 +16,7 @@ const NICO_USER_ID = "Dm9trLIiq2sJmRCsgqrH"; // ID de Nico
 const PIPELINE_ID = "wyP2TvxIOaDFD6g5jz4s"; // Pipeline de Ventas - Óptica Círculo Visión
 const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead
 const OUR_BOT_APP_ID = "6a498c97418d7351792c4b78"; // ID de la app de nuestro bot
+const STAFF_WINDOW_MS = 30 * 60 * 1000; // Ventana de 30 minutos para considerar intervención humana activa
 
 export const store = new GHLState({
   apiToken: GHL_TOKEN,
@@ -25,7 +26,7 @@ export const store = new GHLState({
 
 await store.init();
 
-// Consulta la API oficial de GHL para ver el historial real de mensajes y si intervino un humano
+// Consulta la API oficial de GHL con ventana de tiempo para intervención del Staff (30 min)
 async function checkGHLHistoryAndStaff(contactId) {
   try {
     const res = await fetch(`https://services.leadconnectorhq.com/conversations/search?locationId=${GHL_LOCATION_ID}&contactId=${contactId}`, {
@@ -54,24 +55,37 @@ async function checkGHLHistoryAndStaff(contactId) {
     const messages = msgData.messages?.messages || [];
 
     const hasPreviousMessages = messages.length > 1;
+    const now = Date.now();
 
-    // Detectar si Staff / Nico envió un mensaje de chat real saliente (NO bot, NO eventos de actividad del sistema)
-    const isStaffActive = messages.some(m => {
-      if (m.direction !== 'outbound') return false;
+    const lastInboundMsg = messages.find(m => m.direction === 'inbound');
+    const lastInboundTs = lastInboundMsg ? new Date(lastInboundMsg.dateAdded).getTime() : 0;
 
-      // Ignorar eventos de actividad del sistema (Opportunity created, pipeline stage changes, etc.)
+    let isStaffActive = false;
+
+    for (const m of messages) {
+      if (m.direction !== 'outbound') continue;
+
+      // Ignorar eventos de actividad del sistema (Opportunity created, stage changes, etc.)
       if (m.type === 28 || m.messageType === 'TYPE_ACTIVITY_OPPORTUNITY' || (m.body && m.body.includes('Opportunity created'))) {
-        return false;
+        continue;
       }
 
       const appId = m.meta?.marketplace?.appId;
-      if (appId === OUR_BOT_APP_ID) return false; // Es el bot
+      if (appId === OUR_BOT_APP_ID) continue; // Es el bot
 
       const bodyText = (m.body || "").trim();
-      if (!bodyText) return false; // Ignorar mensajes vacíos
+      const msgTs = new Date(m.dateAdded).getTime();
+      const elapsedMin = Math.round((now - msgTs) / 60000);
 
-      return true; // Es mensaje real del equipo humano (Staff / Nico)
-    });
+      // Solo es Staff Activo si fue enviado en los últimos 30 minutos Y después del último mensaje del cliente
+      if (now - msgTs <= STAFF_WINDOW_MS && msgTs >= lastInboundTs) {
+        isStaffActive = true;
+        console.log(`[DEBUG] Staff detectado por mensaje: "${bodyText || '[Nota de voz/Adjunto]'}" del ${m.dateAdded} (hace ${elapsedMin} min)`);
+        break;
+      } else {
+        console.log(`[DEBUG] Mensaje de staff antiguo/vencido (hace ${elapsedMin} min - ignorado): "${bodyText || '[Nota de voz/Adjunto]'}" del ${m.dateAdded}`);
+      }
+    }
 
     return { isStaffActive, hasPreviousMessages };
   } catch (e) {
@@ -210,11 +224,11 @@ async function procesarLoteDeMensajes(contactId, messages) {
 
   console.log(`[DEBUG] mensaje entrante tiene adjunto para ${contactId}: ${hasAttachment}`);
 
-  // Auditar mensajes de staff y mensajes previos en GHL API
+  // Auditar mensajes de staff recientes en GHL API
   const ghlAudit = await checkGHLHistoryAndStaff(contactId);
 
   if (ghlAudit.isStaffActive) {
-    console.log(`⏸️ Staff/Humano detectado activo con texto en GHL API. Pausando IA para ${contactId}...`);
+    console.log(`⏸️ Staff/Humano detectado activo reciente en GHL API. Pausando IA para ${contactId}...`);
     await store.setState(contactId, { funnel: 'TRASPASO_HUMANO' });
     await addTagToContact(contactId, "atencion_humana");
     return null;
@@ -238,7 +252,7 @@ async function procesarLoteDeMensajes(contactId, messages) {
     await addTagToContact(contactId, "atencion_humana");
     await store.setState(contactId, {
       funnel: 'TRASPASO_HUMANO',
-      saludo_enviado: true // Marcar que ya no se debe saludar nunca más
+      saludo_enviado: true
     });
     return null;
   }
@@ -350,5 +364,5 @@ process.on('SIGTERM', async () => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con GHLState y Detección de Adjuntos PDF.`);
+  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Ventana de Tiempo para Intervención Humana (30m).`);
 });
