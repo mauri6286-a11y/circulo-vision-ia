@@ -18,6 +18,9 @@ const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lea
 const OUR_BOT_APP_ID = "6a498c97418d7351792c4b78"; // ID de la app de nuestro bot
 const STAFF_WINDOW_MS = 30 * 60 * 1000; // Ventana de 30 minutos para considerar intervención humana activa
 
+// Memoria de deduplicación de respuestas salientes consecutivas por contacto
+const lastSentReplies = new Map();
+
 export const store = new GHLState({
   apiToken: GHL_TOKEN,
   locationId: GHL_LOCATION_ID,
@@ -156,6 +159,17 @@ async function ensureOpportunityAndAssignToNico(contactId, contactName) {
 }
 
 async function sendGHLMessage(contactId, messageText, channelType = 'WhatsApp') {
+  const now = Date.now();
+  const lastSent = lastSentReplies.get(contactId);
+
+  // Deduplicación de respuestas idénticas consecutivas (<30 segundos)
+  if (lastSent && lastSent.text === messageText && (now - lastSent.sentAt) < 30000) {
+    console.log(`[DEBUG] Respuesta idéntica consecutiva descartada por deduplicación para ${contactId}: "${messageText}"`);
+    return;
+  }
+
+  lastSentReplies.set(contactId, { text: messageText, sentAt: now });
+
   console.log(`💬 Enviando respuesta por el canal [${channelType}] a ${contactId}...`);
   try {
     const res = await fetch('https://services.leadconnectorhq.com/conversations/messages', {
@@ -364,5 +378,5 @@ process.on('SIGTERM', async () => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Ventana de Tiempo para Intervención Humana (30m).`);
+  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Deduplicación Saliente y Ventana de 30m.`);
 });

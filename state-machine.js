@@ -31,7 +31,7 @@
           .replace(/^Hola!\s*/i, "")
           .replace(/^Hola,\s*/i, "")
           .replace(/^Hola\s*/i, "");
-        
+
         if (text.length > 0) {
           text = text.charAt(0).toUpperCase() + text.slice(1);
         }
@@ -153,7 +153,19 @@
       };
     }
 
-    // 12. ARMAZONES
+    // 12. HORARIOS / DÍAS / APERTURA / PROBARSE EN EL LOCAL
+    if (msg.includes("horario") || msg.includes("horarios") || msg.includes("abren") || msg.includes("abierto") || msg.includes("que hora") || msg.includes("qué hora") || msg.includes("hasta que hora") || msg.includes("hasta qué hora") || msg.includes("probarme") || msg.includes("probar") || msg.includes("pasar por el local") || msg.includes("ir al local") || msg.includes("pasar por ahi") || msg.includes("pasar por ahí")) {
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply(
+          "Estamos en Av. Millán 4494. Atendemos de Lunes a Viernes de 09:00 a 19:00 hs y Sábados de 09:00 a 14:00 hs. Podés pasar a probarte los armazones que gustes en cualquier momento.",
+          "¿Precisás receta o querés coordinar chequeo gratis?"
+        ),
+        patch
+      };
+    }
+
+    // 13. ARMAZONES
     if (msg.includes("armazon") || msg.includes("armazón") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos") || msg.includes("incuyen") || msg.includes("incluyen")) {
       patch.funnel = 'PRESUPUESTADO';
       return {
@@ -166,7 +178,7 @@
       };
     }
 
-    // 13. SOLICITUD DE PRECIOS O COTIZACIONES
+    // 14. SOLICITUD DE PRECIOS O COTIZACIONES
     if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cuánto sale") || msg.includes("cuánto me saldría") || msg.includes("cristal") || msg.includes("precios") || msg.includes("cotiz")) {
       patch.funnel = 'PRESUPUESTADO';
       return {
@@ -179,7 +191,7 @@
       };
     }
 
-    // 14. TENGO RECETA
+    // 15. TENGO RECETA
     if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("lentes de receta") || msg.includes("lentes de reseta")) {
       patch.funnel = 'ESPERANDO_FOTO_RECETA';
       patch.preguntado_receta_chequeo = true;
@@ -190,7 +202,7 @@
       };
     }
 
-    // 15. RESPUESTAS CORTAS NEGATIVAS
+    // 16. RESPUESTAS CORTAS NEGATIVAS
     if (msg.includes("aun no") || msg.includes("aún no") || msg.includes("todavia no") || msg.includes("todavía no") || msg.includes("no tengo") || msg.includes("no la tengo") || msg.includes("no tengo receta")) {
       patch.preguntado_receta_chequeo = true;
       return {
@@ -200,7 +212,7 @@
       };
     }
 
-    // 16. AGRADECIMIENTOS
+    // 17. AGRADECIMIENTOS
     if (msg.includes("gracias") || msg.includes("dale ok") || msg.includes("buenisimo") || msg.includes("buenísimo") || msg.includes("impecable") || msg.includes("dale barbaro") || msg.includes("dale bárbaro")) {
       return {
         action: 'REPLY_TEXT',
@@ -209,7 +221,7 @@
       };
     }
 
-    // 17. DESPEDIDAS SECUNDARIAS
+    // 18. DESPEDIDAS SECUNDARIAS
     if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
       return {
         action: 'REPLY_TEXT',
@@ -218,7 +230,7 @@
       };
     }
 
-    // 18. ENTRADA POR ANUNCIOS / PROMOS
+    // 19. ENTRADA POR ANUNCIOS / PROMOS
     if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/") || (msg.includes("promo") && !msg.includes("precio"))) {
       patch.preguntado_receta_chequeo = true;
       return {
@@ -228,19 +240,19 @@
       };
     }
 
-    // 19. UBICACIÓN
+    // 20. UBICACIÓN
     if (msg.includes("donde") || msg.includes("dónde") || msg.includes("ubicados") || msg.includes("ubicacion") || msg.includes("ubicación") || msg.includes("direccion") || msg.includes("dirección") || msg.includes("montevideo")) {
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "Estamos en **Av. Millán 4494** (Montevideo). Atendemos Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs.",
+          "Estamos en Av. Millán 4494 (Montevideo). Atendemos Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs.",
           "¿Tenés receta o preferís un chequeo gratis?"
         ),
         patch
       };
     }
 
-    // 20. LENTES DE SOL
+    // 21. LENTES DE SOL
     if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
       return {
         action: 'REPLY_TEXT',
@@ -249,16 +261,17 @@
       };
     }
 
-    // 21. FALLBACK GENERAL
+    // 22. FALLBACK GENERAL CON LOG EXPLÍCITO DE CONSULTA SIN REGLA
+    console.log(`[DEBUG] Sin regla para: "${userMessage}" - usando fallback.`);
+    patch.saludo_enviado = true;
+
     if (yaSaludado) {
-      patch.saludo_enviado = true;
       return {
         action: 'REPLY_TEXT',
-        reply: "Entendido. Contame en qué te podemos ayudar o qué consulta tenés sobre tus lentes y te asesoro con gusto.",
+        reply: "Con gusto te asesoramos. Podés enviarnos la foto de tu receta o contarme qué tipo de lente/armazón estás buscando para darte la info exacta.",
         patch
       };
     } else {
-      patch.saludo_enviado = true;
       patch.preguntado_receta_chequeo = true;
       return {
         action: 'REPLY_TEXT',
