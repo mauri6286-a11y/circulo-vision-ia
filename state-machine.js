@@ -23,7 +23,6 @@
     const buildReply = (baseText, recetaChequeoQuestion = "") => {
       let text = baseText;
 
-      // Si ya se saludó, remover expresiones de saludo inicial
       if (yaSaludado) {
         text = text
           .replace(/^¡Hola!\s*😊\s*/i, "")
@@ -37,7 +36,6 @@
         }
       }
 
-      // Si AÚN NO se le preguntó por la receta/chequeo gratis, agregar una sola vez
       if (!yaPreguntoReceta && recetaChequeoQuestion) {
         text = `${text.trim()} ${recetaChequeoQuestion.trim()}`;
         patch.preguntado_receta_chequeo = true;
@@ -83,19 +81,92 @@
       };
     }
 
-    // 6. FOTOCROMÁTICOS / TRANSITIONS
+    // 6. FOTOCROMÁTICOS / TRANSITIONS -> TRASPASO A HUMANO (REGLA DE ORO)
     if (msg.includes("fotocrom") || msg.includes("transition") || msg.includes("fotosensibl")) {
+      return {
+        action: 'HANDOFF_HUMAN',
+        reply: "Para cristales fotocromáticos o fotosensibles te derivo con Nico en el local para que arme el presupuesto exacto según tu receta. En un momento te contactan. [SOLICITA_HUMANO]",
+        patch: { funnel: 'TRASPASO_HUMANO' }
+      };
+    }
+
+    // 7. VARILUX / MULTIFOCALES DIGITALES -> TRASPASO A HUMANO (REGLA DE ORO)
+    if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor") || msg.includes("multifocal") || msg.includes("multifocales")) {
+      return {
+        action: 'HANDOFF_HUMAN',
+        reply: "Para lentes multifocales o Varilux te derivo con Nico en el local para que revise tu receta y te pase el presupuesto personalizado exacto. En un momento te contactan. [SOLICITA_HUMANO]",
+        patch: { funnel: 'TRASPASO_HUMANO' }
+      };
+    }
+
+    // 8. COTIZACIÓN DEL LENTE COMPLETO ARMADO / COMBO -> TRASPASO A HUMANO (REGLA DE ORO)
+    if ((msg.includes("completo") || msg.includes("armado") || msg.includes("sumados") || msg.includes("ambos")) && (msg.includes("lente") || msg.includes("precio") || msg.includes("cuanto"))) {
+      return {
+        action: 'HANDOFF_HUMAN',
+        reply: "Para cotizarte el lente completo armado con el armazón exacto y tu receta sumados, te paso con Nico para que te arme la cotización exacta. Aguardame un segundito. [SOLICITA_HUMANO]",
+        patch: { funnel: 'TRASPASO_HUMANO' }
+      };
+    }
+
+    // 9. ENTRADA POR ANUNCIOS / PROMOS
+    if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/") || msg.includes("promo")) {
+      patch.preguntado_receta_chequeo = true;
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply("Veo que nos escribes por nuestra promo activa. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS.", "¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"),
+        patch
+      };
+    }
+
+    // 10. BIFOCALES (PRECIOS OFICIALES SOLO CRISTAL)
+    if (msg.includes("bifocal") || msg.includes("bifocales")) {
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "Contamos con cristales fotocromáticos (se oscurecen con el sol) desde $3.500 en opción estándar y $4.500 con filtro de luz azul (Blueblocker).",
-          "¿Tenés receta a mano o querés coordinar un chequeo gratis?"
+          "En cristales bifocales contamos con opciones estándar desde $5.490 ($7.490 con antirreflejo) y la línea Bifocal Smart de lumen invisible desde $6.490 ($8.490 con antirreflejo). Precios solo del cristal (armazones aparte desde $2.490).",
+          "¿Tenés la foto de tu receta a mano para asesorarte mejor?"
         ),
         patch
       };
     }
 
-    // 7. ENVÍOS AL INTERIOR / CLIENTES DE OTROS DEPARTAMENTOS
+    // 11. PRECIO ESPECÍFICO: ANTIRREFLEJO
+    if (msg.includes("antirreflejo") || msg.includes("antireflejo") || msg.includes("ar ")) {
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply(
+          "El cristal con antirreflejo tiene un costo de $2.200 (solo cristal, el armazón va aparte desde $2.490).",
+          "¿Es para cerca, lejos o bifocal así te confirmamos exacto?"
+        ),
+        patch
+      };
+    }
+
+    // 12. PRECIO ESPECÍFICO: BLUEBLOCKER / LUZ AZUL
+    if (msg.includes("blueblocker") || msg.includes("blue blocker") || msg.includes("luz azul") || msg.includes("pantalla") || msg.includes("computadora")) {
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply(
+          "El cristal con filtro Blueblocker (luz azul para pantallas) cuesta $3.200 (solo cristal, armazones desde $2.490).",
+          "¿Tenés receta médica o precisás coordinar un chequeo gratis?"
+        ),
+        patch
+      };
+    }
+
+    // 13. PRECIO ESPECÍFICO: CRISTAL BLANCO / COMÚN
+    if (msg.includes("blanco") || msg.includes("cristal comun") || msg.includes("cristal común") || msg.includes("cristal simple") || msg.includes("mas economico") || msg.includes("más económico")) {
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply(
+          "El cristal blanco estándar tiene un costo de $1.300 (solo cristal, armazones aparte desde $2.490).",
+          "¿Querés consultar presupuesto con tu receta o coordinar chequeo gratis?"
+        ),
+        patch
+      };
+    }
+
+    // 14. ENVÍOS AL INTERIOR / CLIENTES DE OTROS DEPARTAMENTOS
     if (msg.includes("artigas") || msg.includes("salto") || msg.includes("rivera") || msg.includes("maldonado") || msg.includes("rocha") || msg.includes("tacuarembo") || msg.includes("tacuarembó") || msg.includes("colonia") || msg.includes("minas") || msg.includes("durazno") || msg.includes("florida") || msg.includes("san jose") || msg.includes("san josé") || msg.includes("mercedes") || msg.includes("treinta y tres") || msg.includes("rio negro") || msg.includes("soriano") || msg.includes("cerro largo") || msg.includes("interior") || msg.includes("envio") || msg.includes("envíos") || msg.includes("despacho")) {
       return {
         action: 'REPLY_TEXT',
@@ -106,31 +177,7 @@
       };
     }
 
-    // 8. BIFOCALES
-    if (msg.includes("bifocal") || msg.includes("bifocales")) {
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(
-          "Contamos con cristales bifocales desde $2.500 (cristal solo, armazones desde $1.200).",
-          "¿Tenés foto de tu receta a mano o querés coordinar un chequeo gratis?"
-        ),
-        patch
-      };
-    }
-
-    // 9. VARILUX / MULTIFOCALES DIGITALES
-    if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor") || msg.includes("multifocal")) {
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(
-          "Los multifocales Varilux son de excelente gama digital. El precio depende de tu receta.",
-          "¿Tenés la foto a mano o querés asesorarte en el local de Av. Millán 4494?"
-        ),
-        patch
-      };
-    }
-
-    // 10. CONVENIOS
+    // 15. CONVENIOS
     if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico") || msg.includes("católico") || msg.includes("evangélico")) {
       return {
         action: 'REPLY_TEXT',
@@ -141,7 +188,7 @@
       };
     }
 
-    // 11. CUOTAS / TARJETAS
+    // 16. CUOTAS / TARJETAS
     if (msg.includes("cuota") || msg.includes("cuotas") || msg.includes("tarjeta") || msg.includes("pago") || msg.includes("credito") || msg.includes("crédito") || msg.includes("debito") || msg.includes("débito") || msg.includes("financiar")) {
       return {
         action: 'REPLY_TEXT',
@@ -153,7 +200,7 @@
       };
     }
 
-    // 12. HORARIOS / DÍAS / APERTURA / PROBARSE EN EL LOCAL
+    // 17. HORARIOS / DÍAS / APERTURA / PROBARSE EN EL LOCAL
     if (msg.includes("horario") || msg.includes("horarios") || msg.includes("abren") || msg.includes("abierto") || msg.includes("que hora") || msg.includes("qué hora") || msg.includes("hasta que hora") || msg.includes("hasta qué hora") || msg.includes("probarme") || msg.includes("probar") || msg.includes("pasar por el local") || msg.includes("ir al local") || msg.includes("pasar por ahi") || msg.includes("pasar por ahí")) {
       return {
         action: 'REPLY_TEXT',
@@ -165,33 +212,33 @@
       };
     }
 
-    // 13. ARMAZONES
+    // 18. ARMAZONES (DESDE $2.490 - REGLA OFICIAL)
     if (msg.includes("armazon") || msg.includes("armazón") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos") || msg.includes("incuyen") || msg.includes("incluyen")) {
       patch.funnel = 'PRESUPUESTADO';
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "Los precios indicados son por los cristales. En el local tenemos armazones desde $1.200 para armar el combo completo.",
-          "¿Tenés receta a mano o precisás un chequeo gratis?"
+          "Contamos con variedad de armazones desde $2.490 (los cristales van aparte según la receta).",
+          "¿Buscás armazones de hombre, dama, niños o querés probarte en el local?"
         ),
         patch
       };
     }
 
-    // 14. SOLICITUD DE PRECIOS O COTIZACIONES
+    // 19. PRECIOS GENERALES (SIN TIRAR LISTA COMPLETA - REGLA CONVERSACIONAL)
     if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cuánto sale") || msg.includes("cuánto me saldría") || msg.includes("cristal") || msg.includes("precios") || msg.includes("cotiz")) {
       patch.funnel = 'PRESUPUESTADO';
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "Tenemos cristales desde $1.300 (Blanco), $2.200 (Antireflejo), $3.200 (Blueblocker) y armazones desde $1.200 para armar el lente completo.",
-          "¿Tenés la receta a mano para cotizarte exacto?"
+          "El precio depende del cristal que necesites: tenemos cristales desde $1.300 (Blanco), $2.200 (Antirreflejo) y $3.200 (Blueblocker). Los armazones van aparte desde $2.490.",
+          "¿Tenés tu receta a mano para darte el precio exacto?"
         ),
         patch
       };
     }
 
-    // 15. TENGO RECETA
+    // 20. TENGO RECETA
     if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("lentes de receta") || msg.includes("lentes de reseta")) {
       patch.funnel = 'ESPERANDO_FOTO_RECETA';
       patch.preguntado_receta_chequeo = true;
@@ -202,7 +249,7 @@
       };
     }
 
-    // 16. RESPUESTAS CORTAS NEGATIVAS
+    // 21. RESPUESTAS CORTAS NEGATIVAS
     if (msg.includes("aun no") || msg.includes("aún no") || msg.includes("todavia no") || msg.includes("todavía no") || msg.includes("no tengo") || msg.includes("no la tengo") || msg.includes("no tengo receta")) {
       patch.preguntado_receta_chequeo = true;
       return {
@@ -212,7 +259,7 @@
       };
     }
 
-    // 17. AGRADECIMIENTOS
+    // 22. AGRADECIMIENTOS
     if (msg.includes("gracias") || msg.includes("dale ok") || msg.includes("buenisimo") || msg.includes("buenísimo") || msg.includes("impecable") || msg.includes("dale barbaro") || msg.includes("dale bárbaro")) {
       return {
         action: 'REPLY_TEXT',
@@ -221,7 +268,7 @@
       };
     }
 
-    // 18. DESPEDIDAS SECUNDARIAS
+    // 23. DESPEDIDAS SECUNDARIAS
     if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
       return {
         action: 'REPLY_TEXT',
@@ -230,17 +277,7 @@
       };
     }
 
-    // 19. ENTRADA POR ANUNCIOS / PROMOS
-    if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/") || (msg.includes("promo") && !msg.includes("precio"))) {
-      patch.preguntado_receta_chequeo = true;
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply("Veo que nos escribes por nuestra promo activa. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS.", "¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"),
-        patch
-      };
-    }
-
-    // 20. UBICACIÓN
+    // 24. UBICACIÓN
     if (msg.includes("donde") || msg.includes("dónde") || msg.includes("ubicados") || msg.includes("ubicacion") || msg.includes("ubicación") || msg.includes("direccion") || msg.includes("dirección") || msg.includes("montevideo")) {
       return {
         action: 'REPLY_TEXT',
@@ -252,7 +289,7 @@
       };
     }
 
-    // 21. LENTES DE SOL
+    // 25. LENTES DE SOL
     if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
       return {
         action: 'REPLY_TEXT',
@@ -261,14 +298,14 @@
       };
     }
 
-    // 22. FALLBACK GENERAL CON LOG EXPLÍCITO DE CONSULTA SIN REGLA
+    // 26. FALLBACK GENERAL CON LOG EXPLÍCITO DE CONSULTA SIN REGLA
     console.log(`[DEBUG] Sin regla para: "${userMessage}" - usando fallback.`);
     patch.saludo_enviado = true;
 
     if (yaSaludado) {
       return {
         action: 'REPLY_TEXT',
-        reply: "Con gusto te asesoramos. Podés enviarnos la foto de tu receta o contarme qué tipo de lente/armazón estás buscando para darte la info exacta.",
+        reply: "Con gusto te asesoramos. Podés enviarnos la foto de tu receta o contarme qué cristal o armazón buscás para darte la info exacta.",
         patch
       };
     } else {
