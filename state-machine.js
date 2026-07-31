@@ -81,7 +81,7 @@
       };
     }
 
-    // 6. FOTOCROMÁTICOS / TRANSITIONS -> TRASPASO A HUMANO (REGLA DE ORO)
+    // 6. FOTOCROMÁTICOS / TRANSITIONS -> TRASPASO A HUMANO
     if (msg.includes("fotocrom") || msg.includes("transition") || msg.includes("fotosensibl")) {
       return {
         action: 'HANDOFF_HUMAN',
@@ -90,7 +90,7 @@
       };
     }
 
-    // 7. VARILUX / MULTIFOCALES DIGITALES -> TRASPASO A HUMANO (REGLA DE ORO)
+    // 7. VARILUX / MULTIFOCALES DIGITALES -> TRASPASO A HUMANO
     if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor") || msg.includes("multifocal") || msg.includes("multifocales")) {
       return {
         action: 'HANDOFF_HUMAN',
@@ -99,7 +99,7 @@
       };
     }
 
-    // 8. COTIZACIÓN DEL LENTE COMPLETO ARMADO / COMBO -> TRASPASO A HUMANO (REGLA DE ORO)
+    // 8. COTIZACIÓN DEL LENTE COMPLETO ARMADO / COMBO -> TRASPASO A HUMANO
     if ((msg.includes("completo") || msg.includes("armado") || msg.includes("sumados") || msg.includes("ambos")) && (msg.includes("lente") || msg.includes("precio") || msg.includes("cuanto"))) {
       return {
         action: 'HANDOFF_HUMAN',
@@ -108,7 +108,38 @@
       };
     }
 
-    // 9. ENTRADA POR ANUNCIOS / PROMOS
+    // 9. CLIENTE AFIRMA NO TENER RECETA / REPETICIÓN "YA TE DIJE QUE NO TENGO"
+    if (msg.includes("no tengo receta") || msg.includes("no la tengo") || msg.includes("sin receta") || msg.includes("ya te dije") || msg.includes("ya dije") || msg.includes("aun no") || msg.includes("aún no") || msg.includes("todavia no") || msg.includes("todavía no") || (msg.includes("no tengo") && !msg.includes("receta médica"))) {
+      patch.preguntado_receta_chequeo = true;
+      patch.funnel = 'CHEQUEO_REQUERIDO';
+
+      if (yaPreguntoReceta || msg.includes("ya te dije") || msg.includes("ya dije")) {
+        return {
+          action: 'REPLY_TEXT',
+          reply: buildReply("¡Entendido, disculpá la insistencia! Como no tenés receta, lo resolvemos súper fácil con un chequeo visual 100% GRATIS en nuestro local de Av. Millán 4494 para hacerte la receta en el momento. ¿Te queda bien pasar entre semana (9 a 19 hs) o un sábado (9 a 14 hs)?"),
+          patch
+        };
+      } else {
+        return {
+          action: 'REPLY_TEXT',
+          reply: buildReply("¡Sin ningún problema! Lo resolvemos coordinando un chequeo visual 100% GRATIS en nuestro local de Av. Millán 4494 para hacer la receta en el momento. ¿Te queda mejor pasar entre semana o un sábado?"),
+          patch
+        };
+      }
+    }
+
+    // 10. TENGO RECETA (DEBE EXCLUIR EXPRESIONES NEGATIVAS COMO "NO TENGO RECETA")
+    if ((msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("lentes de receta") || msg.includes("lentes de reseta")) && !msg.includes("no tengo") && !msg.includes("no la tengo") && !msg.includes("ya te dije")) {
+      patch.funnel = 'ESPERANDO_FOTO_RECETA';
+      patch.preguntado_receta_chequeo = true;
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply("¡Bárbaro! Podés mandarme una foto de tu receta por acá para cotizarte los cristales exactos, o si preferís coordinamos un chequeo gratis. ¿Qué te queda mejor?"),
+        patch
+      };
+    }
+
+    // 11. ENTRADA POR ANUNCIOS / PROMOS
     if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/") || msg.includes("promo")) {
       patch.preguntado_receta_chequeo = true;
       return {
@@ -118,7 +149,7 @@
       };
     }
 
-    // 10. BIFOCALES (PRECIOS OFICIALES SOLO CRISTAL)
+    // 12. BIFOCALES
     if (msg.includes("bifocal") || msg.includes("bifocales")) {
       return {
         action: 'REPLY_TEXT',
@@ -130,7 +161,7 @@
       };
     }
 
-    // 11. PRECIO ESPECÍFICO: ANTIRREFLEJO
+    // 13. PRECIO ESPECÍFICO: ANTIRREFLEJO
     if (msg.includes("antirreflejo") || msg.includes("antireflejo") || msg.includes("ar ")) {
       return {
         action: 'REPLY_TEXT',
@@ -142,7 +173,7 @@
       };
     }
 
-    // 12. PRECIO ESPECÍFICO: BLUEBLOCKER / LUZ AZUL
+    // 14. PRECIO ESPECÍFICO: BLUEBLOCKER / LUZ AZUL
     if (msg.includes("blueblocker") || msg.includes("blue blocker") || msg.includes("luz azul") || msg.includes("pantalla") || msg.includes("computadora")) {
       return {
         action: 'REPLY_TEXT',
@@ -154,7 +185,7 @@
       };
     }
 
-    // 13. PRECIO ESPECÍFICO: CRISTAL BLANCO / COMÚN
+    // 15. PRECIO ESPECÍFICO: CRISTAL BLANCO / COMÚN
     if (msg.includes("blanco") || msg.includes("cristal comun") || msg.includes("cristal común") || msg.includes("cristal simple") || msg.includes("mas economico") || msg.includes("más económico")) {
       return {
         action: 'REPLY_TEXT',
@@ -166,7 +197,7 @@
       };
     }
 
-    // 14. ENVÍOS AL INTERIOR / CLIENTES DE OTROS DEPARTAMENTOS
+    // 16. ENVÍOS AL INTERIOR
     if (msg.includes("artigas") || msg.includes("salto") || msg.includes("rivera") || msg.includes("maldonado") || msg.includes("rocha") || msg.includes("tacuarembo") || msg.includes("tacuarembó") || msg.includes("colonia") || msg.includes("minas") || msg.includes("durazno") || msg.includes("florida") || msg.includes("san jose") || msg.includes("san josé") || msg.includes("mercedes") || msg.includes("treinta y tres") || msg.includes("rio negro") || msg.includes("soriano") || msg.includes("cerro largo") || msg.includes("interior") || msg.includes("envio") || msg.includes("envíos") || msg.includes("despacho")) {
       return {
         action: 'REPLY_TEXT',
@@ -177,7 +208,7 @@
       };
     }
 
-    // 15. CONVENIOS
+    // 17. CONVENIOS
     if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico") || msg.includes("católico") || msg.includes("evangélico")) {
       return {
         action: 'REPLY_TEXT',
@@ -188,7 +219,7 @@
       };
     }
 
-    // 16. CUOTAS / TARJETAS
+    // 18. CUOTAS / TARJETAS
     if (msg.includes("cuota") || msg.includes("cuotas") || msg.includes("tarjeta") || msg.includes("pago") || msg.includes("credito") || msg.includes("crédito") || msg.includes("debito") || msg.includes("débito") || msg.includes("financiar")) {
       return {
         action: 'REPLY_TEXT',
@@ -200,7 +231,7 @@
       };
     }
 
-    // 17. HORARIOS / DÍAS / APERTURA / PROBARSE EN EL LOCAL
+    // 19. HORARIOS / DÍAS / APERTURA / PROBARSE EN EL LOCAL
     if (msg.includes("horario") || msg.includes("horarios") || msg.includes("abren") || msg.includes("abierto") || msg.includes("que hora") || msg.includes("qué hora") || msg.includes("hasta que hora") || msg.includes("hasta qué hora") || msg.includes("probarme") || msg.includes("probar") || msg.includes("pasar por el local") || msg.includes("ir al local") || msg.includes("pasar por ahi") || msg.includes("pasar por ahí")) {
       return {
         action: 'REPLY_TEXT',
@@ -212,7 +243,7 @@
       };
     }
 
-    // 18. ARMAZONES (DESDE $2.490 - REGLA OFICIAL)
+    // 20. ARMAZONES
     if (msg.includes("armazon") || msg.includes("armazón") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos") || msg.includes("incuyen") || msg.includes("incluyen")) {
       patch.funnel = 'PRESUPUESTADO';
       return {
@@ -225,7 +256,7 @@
       };
     }
 
-    // 19. PRECIOS GENERALES (SIN TIRAR LISTA COMPLETA - REGLA CONVERSACIONAL)
+    // 21. PRECIOS GENERALES
     if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cuánto sale") || msg.includes("cuánto me saldría") || msg.includes("cristal") || msg.includes("precios") || msg.includes("cotiz")) {
       patch.funnel = 'PRESUPUESTADO';
       return {
@@ -234,27 +265,6 @@
           "El precio depende del cristal que necesites: tenemos cristales desde $1.300 (Blanco), $2.200 (Antirreflejo) y $3.200 (Blueblocker). Los armazones van aparte desde $2.490.",
           "¿Tenés tu receta a mano para darte el precio exacto?"
         ),
-        patch
-      };
-    }
-
-    // 20. TENGO RECETA
-    if (msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("lentes de receta") || msg.includes("lentes de reseta")) {
-      patch.funnel = 'ESPERANDO_FOTO_RECETA';
-      patch.preguntado_receta_chequeo = true;
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply("¡Bárbaro! Podés mandarme una foto de tu receta por acá para cotizarte los cristales exactos, o si preferís coordinamos un chequeo gratis. ¿Qué te queda mejor?"),
-        patch
-      };
-    }
-
-    // 21. RESPUESTAS CORTAS NEGATIVAS
-    if (msg.includes("aun no") || msg.includes("aún no") || msg.includes("todavia no") || msg.includes("todavía no") || msg.includes("no tengo") || msg.includes("no la tengo") || msg.includes("no tengo receta")) {
-      patch.preguntado_receta_chequeo = true;
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply("Sin problema. ¿Te gustaría coordinar un chequeo visual 100% GRATIS en nuestro local de Av. Millán 4494 para hacer la receta?"),
         patch
       };
     }

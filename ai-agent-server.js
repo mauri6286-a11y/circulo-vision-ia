@@ -29,6 +29,10 @@ export const store = new GHLState({
 
 await store.init();
 
+function normalizeText(txt) {
+  return (txt || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+}
+
 // Consulta la API oficial de GHL con ventana de tiempo para intervención del Staff (30 min)
 async function checkGHLHistoryAndStaff(contactId) {
   try {
@@ -40,10 +44,10 @@ async function checkGHLHistoryAndStaff(contactId) {
       }
     });
 
-    if (!res.ok) return { isStaffActive: false, hasPreviousMessages: false };
+    if (!res.ok) return { isStaffActive: false, hasPreviousMessages: false, history: [] };
     const data = await res.json();
     const conv = data.conversations?.[0];
-    if (!conv) return { isStaffActive: false, hasPreviousMessages: false };
+    if (!conv) return { isStaffActive: false, hasPreviousMessages: false, history: [] };
 
     const msgRes = await fetch(`https://services.leadconnectorhq.com/conversations/${conv.id}/messages?limit=25`, {
       headers: {
@@ -53,9 +57,18 @@ async function checkGHLHistoryAndStaff(contactId) {
       }
     });
 
-    if (!msgRes.ok) return { isStaffActive: false, hasPreviousMessages: true };
+    if (!msgRes.ok) return { isStaffActive: false, hasPreviousMessages: true, history: [] };
     const msgData = await msgRes.json();
     const messages = msgData.messages?.messages || [];
+
+    const historySummary = messages.map(m => ({
+      direction: m.direction,
+      body: m.body,
+      dateAdded: m.dateAdded,
+      appId: m.meta?.marketplace?.appId || null
+    }));
+
+    console.log(`[DEBUG] historial de conversación traído de GHL API para ${contactId}:`, JSON.stringify(historySummary, null, 2));
 
     const hasPreviousMessages = messages.length > 1;
     const now = Date.now();
@@ -90,10 +103,10 @@ async function checkGHLHistoryAndStaff(contactId) {
       }
     }
 
-    return { isStaffActive, hasPreviousMessages };
+    return { isStaffActive, hasPreviousMessages, history: historySummary };
   } catch (e) {
     console.error("Error verificando historial GHL API:", e.message);
-    return { isStaffActive: false, hasPreviousMessages: false };
+    return { isStaffActive: false, hasPreviousMessages: false, history: [] };
   }
 }
 
@@ -161,9 +174,10 @@ async function ensureOpportunityAndAssignToNico(contactId, contactName) {
 async function sendGHLMessage(contactId, messageText, channelType = 'WhatsApp') {
   const now = Date.now();
   const lastSent = lastSentReplies.get(contactId);
+  const normCurrent = normalizeText(messageText);
 
-  // Deduplicación de respuestas idénticas consecutivas (<30 segundos)
-  if (lastSent && lastSent.text === messageText && (now - lastSent.sentAt) < 30000) {
+  // Deduplicación estricta de respuestas idénticas consecutivas (<60 segundos por texto normalizado)
+  if (lastSent && normalizeText(lastSent.text) === normCurrent && (now - lastSent.sentAt) < 60000) {
     console.log(`[DEBUG] Respuesta idéntica consecutiva descartada por deduplicación para ${contactId}: "${messageText}"`);
     return;
   }
@@ -238,7 +252,7 @@ async function procesarLoteDeMensajes(contactId, messages) {
 
   console.log(`[DEBUG] mensaje entrante tiene adjunto para ${contactId}: ${hasAttachment}`);
 
-  // Auditar mensajes de staff recientes en GHL API
+  // Auditar mensajes de staff recientes e historial en GHL API
   const ghlAudit = await checkGHLHistoryAndStaff(contactId);
 
   if (ghlAudit.isStaffActive) {
@@ -378,5 +392,5 @@ process.on('SIGTERM', async () => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Deduplicación Saliente y Ventana de 30m.`);
+  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Desambiguación de Receta y Logs de Historial GHL API.`);
 });
