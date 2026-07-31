@@ -1,7 +1,8 @@
-import express from 'express';
+﻿import express from 'express';
 import dotenv from 'dotenv';
-import { db } from './database.js';
 import { StateMachine } from './state-machine.js';
+import { WebhookGuard } from './webhook-guard.js';
+import { GHLState } from './ghl-state.js';
 
 dotenv.config();
 
@@ -14,11 +15,72 @@ const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID;
 const NICO_USER_ID = "Dm9trLIiq2sJmRCsgqrH"; // ID de Nico
 const PIPELINE_ID = "wyP2TvxIOaDFD6g5jz4s"; // Pipeline de Ventas - Óptica Círculo Visión
 const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead
+const OUR_BOT_APP_ID = "6a498c97418d7351792c4b78"; // ID de la app de nuestro bot
 
-async function isIAHandledByHuman(contactId) {
-  const contactLocal = db.getContact(contactId);
-  if (contactLocal.ia_pausada) return true;
+export const store = new GHLState({
+  apiToken: GHL_TOKEN,
+  locationId: GHL_LOCATION_ID,
+  cacheTtlMs: 0
+});
 
+await store.init();
+
+// Consulta la API oficial de GHL para ver el historial real de mensajes y si intervino un humano
+async function checkGHLHistoryAndStaff(contactId) {
+  try {
+    const res = await fetch(`https://services.leadconnectorhq.com/conversations/search?locationId=${GHL_LOCATION_ID}&contactId=${contactId}`, {
+      headers: {
+        'Authorization': `Bearer ${GHL_TOKEN}`,
+        'Version': '2021-07-28',
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!res.ok) return { isStaffActive: false, hasPreviousMessages: false };
+    const data = await res.json();
+    const conv = data.conversations?.[0];
+    if (!conv) return { isStaffActive: false, hasPreviousMessages: false };
+
+    const msgRes = await fetch(`https://services.leadconnectorhq.com/conversations/${conv.id}/messages?limit=25`, {
+      headers: {
+        'Authorization': `Bearer ${GHL_TOKEN}`,
+        'Version': '2021-07-28',
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!msgRes.ok) return { isStaffActive: false, hasPreviousMessages: true };
+    const msgData = await msgRes.json();
+    const messages = msgData.messages?.messages || [];
+
+    const hasPreviousMessages = messages.length > 1;
+
+    // Detectar si Staff / Nico envió un mensaje de chat real saliente (NO bot, NO eventos de actividad del sistema)
+    const isStaffActive = messages.some(m => {
+      if (m.direction !== 'outbound') return false;
+
+      // Ignorar eventos de actividad del sistema (Opportunity created, pipeline stage changes, etc.)
+      if (m.type === 28 || m.messageType === 'TYPE_ACTIVITY_OPPORTUNITY' || (m.body && m.body.includes('Opportunity created'))) {
+        return false;
+      }
+
+      const appId = m.meta?.marketplace?.appId;
+      if (appId === OUR_BOT_APP_ID) return false; // Es el bot
+
+      const bodyText = (m.body || "").trim();
+      if (!bodyText) return false; // Ignorar mensajes vacíos
+
+      return true; // Es mensaje real del equipo humano (Staff / Nico)
+    });
+
+    return { isStaffActive, hasPreviousMessages };
+  } catch (e) {
+    console.error("Error verificando historial GHL API:", e.message);
+    return { isStaffActive: false, hasPreviousMessages: false };
+  }
+}
+
+async function verificarTagHumano(contactId) {
   try {
     const res = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, {
       headers: {
@@ -38,7 +100,7 @@ async function isIAHandledByHuman(contactId) {
     });
 
     if (isPaused) {
-      db.setIAPaused(contactId, true);
+      await store.setState(contactId, { funnel: 'TRASPASO_HUMANO' });
     }
     return isPaused;
   } catch (e) {
@@ -79,102 +141,8 @@ async function ensureOpportunityAndAssignToNico(contactId, contactName) {
   }
 }
 
-async function handleWebhook(req, res) {
-  console.log("📥 Webhook recibido de GHL:", JSON.stringify(req.body, null, 2));
-
-  const contactId = req.body.contact_id || req.body.contactId || req.body.contact?.id || req.body.id;
-  const direction = (req.body.direction || req.body.type || req.body.message?.direction || "").toString();
-  const userId = req.body.userId || req.body.user_id || req.body.message?.userId;
-  const source = (req.body.source || req.body.message?.source || "").toString();
-
-  const fullBodyStr = JSON.stringify(req.body).toLowerCase();
-  let channelType = 'WhatsApp';
-  
-  if (fullBodyStr.includes("instagram") || fullBodyStr.includes('"ig"') || fullBodyStr.includes("dm de insta")) {
-    channelType = 'IG';
-  } else if (fullBodyStr.includes("facebook") || fullBodyStr.includes("messenger") || fullBodyStr.includes('"fb"')) {
-    channelType = 'FB';
-  }
-
-  // 1. DETECCIÓN DE MENSAJES DE STAFF / NICO / AUDIOS OUTBOUND
-  const isOutboundStaff = direction.toLowerCase().includes("outbound") || 
-                          userId || 
-                          source.toLowerCase().includes("user") || 
-                          source.toLowerCase().includes("mobile") || 
-                          fullBodyStr.includes('"direction":"outbound"') ||
-                          fullBodyStr.includes('"userid":');
-
-  if (isOutboundStaff) {
-    console.log(`👤 Mensaje del equipo (Staff / Nico) detectado. Pausando IA para ${contactId}...`);
-    if (contactId) {
-      db.setIAPaused(contactId, true);
-      db.addMessage(contactId, 'staff', 'Mensaje/Audio del equipo humano');
-      await addTagToContact(contactId, "Atencion_Humana");
-    }
-    return res.status(200).json({ status: "staff_message_detected_ia_paused" });
-  }
-
-  if (!contactId) {
-    return res.status(200).json({ status: "ignored" });
-  }
-
-  // 2. VERIFICACIÓN EN BASE DE DATOS Y GHL SI LA IA ESTÁ PAUSADA
-  const isHumanActive = await isIAHandledByHuman(contactId);
-  if (isHumanActive) {
-    console.log(`🛑 Mensaje ignorado por la IA porque Nico/Staff tiene el control de ${contactId}.`);
-    return res.status(200).json({ status: "paused_human_active" });
-  }
-
-  let incomingMessage = typeof req.body.message === 'string' ? req.body.message : (req.body.message?.body || req.body.body || req.body.text || req.body.customData?.message || "");
-  const audioAttachment = req.body.attachments?.[0] || req.body.mediaUrl || req.body.media_url;
-
-  if (!incomingMessage && audioAttachment) {
-    console.log("🎙️ Nota de voz / Audio detectado:", audioAttachment);
-    incomingMessage = "Hola quisiera información y agendarme para un test visual";
-  }
-
-  const firstName = req.body.first_name || req.body.contact?.first_name || "";
-  const lastName = req.body.last_name || req.body.contact?.last_name || "";
-  const contactName = `${firstName} ${lastName}`.trim();
-
-  // Registrar cliente y mensaje en Base de Datos Local
-  db.getContact(contactId);
-  db.addMessage(contactId, 'cliente', incomingMessage);
-
-  await ensureOpportunityAndAssignToNico(contactId, contactName);
-
-  // 3. EVALUACIÓN DE MÁQUINA DE ESTADOS
-  const stateResult = StateMachine.processMessage(contactId, incomingMessage);
-
-  if (stateResult.action === 'IGNORE_HUMAN_ACTIVE') {
-    return res.status(200).json({ status: "paused_human_active" });
-  }
-
-  const replyText = stateResult.reply;
-
-  if (stateResult.action === 'HANDOFF_HUMAN') {
-    const cleanReply = replyText.replace("[SOLICITA_HUMANO]", "").trim();
-    await sendGHLMessage(contactId, cleanReply, channelType);
-    await addTagToContact(contactId, "Atencion_Humana");
-    db.setIAPaused(contactId, true);
-    db.addMessage(contactId, 'ia', cleanReply);
-    return res.json({ status: "handoff_to_human", reply: cleanReply });
-  }
-
-  await sendGHLMessage(contactId, replyText, channelType);
-  db.addMessage(contactId, 'ia', replyText);
-  res.json({ status: "success", channel: channelType, reply: replyText });
-}
-
-app.post('/webhook/ghl-message', handleWebhook);
-app.post('/', handleWebhook);
-
-app.get('/', (req, res) => {
-  res.send("🚀 Servidor de Agente IA Omnicanal Círculo Visión activo 24/7 con Base de Datos Local.");
-});
-
 async function sendGHLMessage(contactId, messageText, channelType = 'WhatsApp') {
-  console.log(`📤 Enviando respuesta por el canal [${channelType}] a ${contactId}...`);
+  console.log(`💬 Enviando respuesta por el canal [${channelType}] a ${contactId}...`);
   try {
     const res = await fetch('https://services.leadconnectorhq.com/conversations/messages', {
       method: 'POST',
@@ -190,7 +158,7 @@ async function sendGHLMessage(contactId, messageText, channelType = 'WhatsApp') 
       })
     });
     if (res.ok) {
-      console.log(`✅ Mensaje enviado exitosamente por [${channelType}] a ${channelType}`);
+      console.log(`✅ Mensaje enviado exitosamente por [${channelType}] a ${contactId}`);
     } else {
       const err = await res.text();
       console.error(`❌ Error respuesta GHL API (${res.status}):`, err);
@@ -211,12 +179,176 @@ async function addTagToContact(contactId, tag) {
       },
       body: JSON.stringify({ tags: [tag] })
     });
+    console.log(`🏷️ Etiqueta '${tag}' agregada exitosamente a ${contactId}`);
   } catch (e) {
     console.error("Error agregando tag:", e.message);
   }
 }
 
+// Lógica de procesamiento de ráfagas contra GHL Custom Fields (ghl-state)
+async function procesarLoteDeMensajes(contactId, messages) {
+  const textoCompleto = messages.map(m => m.text).filter(Boolean).join('\n').trim();
+  console.log(`[DEBUG] Ráfaga entrante para contacto ${contactId}: "${textoCompleto}"`);
+
+  // 1. LEER SIEMPRE EL ESTADO ACTUAL PRIMERO DESDE GHL CUSTOM FIELDS
+  const currentState = await store.getState(contactId);
+  console.log(`[DEBUG] Estado actual leído desde GHL para ${contactId}:`, JSON.stringify(currentState));
+
+  // Detección exhaustiva de adjuntos (PDF, comprobante, imagen, audio, archivo)
+  const hasAttachment = messages.some(m => {
+    if (m.hasAttachment) return true;
+    const r = m.raw || {};
+    if (r.attachments && r.attachments.length > 0) return true;
+    if (r.message?.attachments && r.message.attachments.length > 0) return true;
+    if (r.mediaUrl || r.media_url || r.fileUrl || r.document) return true;
+    const typeStr = (r.type || r.contentType || r.messageType || "").toString().toLowerCase();
+    if (typeStr.includes("pdf") || typeStr.includes("attachment") || typeStr.includes("media") || typeStr.includes("image") || typeStr.includes("audio") || typeStr.includes("document") || typeStr.includes("file")) return true;
+    const txt = (m.text || "").toLowerCase();
+    if (txt.includes(".pdf") || txt.includes(".jpg") || txt.includes(".jpeg") || txt.includes(".png") || txt.includes("comprobante") || txt.includes("recibo") || txt.includes("transferencia")) return true;
+    return false;
+  });
+
+  console.log(`[DEBUG] mensaje entrante tiene adjunto para ${contactId}: ${hasAttachment}`);
+
+  // Auditar mensajes de staff y mensajes previos en GHL API
+  const ghlAudit = await checkGHLHistoryAndStaff(contactId);
+
+  if (ghlAudit.isStaffActive) {
+    console.log(`⏸️ Staff/Humano detectado activo con texto en GHL API. Pausando IA para ${contactId}...`);
+    await store.setState(contactId, { funnel: 'TRASPASO_HUMANO' });
+    await addTagToContact(contactId, "atencion_humana");
+    return null;
+  }
+
+  if (ghlAudit.hasPreviousMessages && !currentState.saludo_enviado) {
+    currentState.saludo_enviado = true;
+  }
+
+  const isHumanActive = await verificarTagHumano(contactId);
+  if (isHumanActive || currentState.funnel === 'TRASPASO_HUMANO') {
+    console.log(`⏸️ Mensaje ignorado por la IA porque Nico/Staff tiene el control de ${contactId}.`);
+    return null;
+  }
+
+  // MANEJO DE ADJUNTOS / COMPROBANTES / PDF: JAMÁS SALUDA NI USA PLANTILLA DE PITCH
+  if (hasAttachment || !textoCompleto) {
+    console.log(`📎 Adjunto/PDF o mensaje sin texto detectado para ${contactId}. Enviando mensaje corto de recibido y pasando a humano...`);
+    const confirmReply = "¡Recibido! En un momento revisamos el archivo y te confirmamos.";
+    await sendGHLMessage(contactId, confirmReply);
+    await addTagToContact(contactId, "atencion_humana");
+    await store.setState(contactId, {
+      funnel: 'TRASPASO_HUMANO',
+      saludo_enviado: true // Marcar que ya no se debe saludar nunca más
+    });
+    return null;
+  }
+
+  const firstRaw = messages[0]?.raw || {};
+  const firstName = firstRaw.first_name || firstRaw.contact?.first_name || "";
+  const lastName = firstRaw.last_name || firstRaw.contact?.last_name || "";
+  const contactName = `${firstName} ${lastName}`.trim();
+
+  await ensureOpportunityAndAssignToNico(contactId, contactName);
+
+  // Evaluar máquina de estados con el estado actual traído de GHL
+  const stateResult = StateMachine.processMessage(contactId, textoCompleto, currentState);
+  console.log(`[DEBUG] Resultado de StateMachine para ${contactId}:`, JSON.stringify(stateResult));
+
+  if (stateResult.action === 'IGNORE_HUMAN_ACTIVE') {
+    return null;
+  }
+
+  const replyText = typeof stateResult === 'string' ? stateResult : stateResult.reply;
+  const patchToSave = stateResult.patch || {};
+
+  console.log(`[DEBUG] patch antes de setState para ${contactId}:`, JSON.stringify(patchToSave));
+
+  if (Object.keys(patchToSave).length === 0) {
+    console.warn(`[DEBUG] ADVERTENCIA: El patch viene VACÍO ({}) para contacto ${contactId}!`);
+  } else {
+    await store.setState(contactId, patchToSave);
+  }
+
+  if (stateResult.action === 'HANDOFF_HUMAN') {
+    const cleanReply = replyText.replace("[SOLICITA_HUMANO]", "").trim();
+    await sendGHLMessage(contactId, cleanReply);
+    await addTagToContact(contactId, "atencion_humana");
+    await store.setState(contactId, { funnel: 'TRASPASO_HUMANO' });
+    return null;
+  }
+
+  return replyText;
+}
+
+export const guard = new WebhookGuard({
+  debounceMs: 7000,
+  processBatch: procesarLoteDeMensajes,
+  isHumanHandling: verificarTagHumano,
+  sendReply: async (contactId, texto) => {
+    await sendGHLMessage(contactId, texto);
+  }
+});
+
+function extraerContactId(body) {
+  return body.contact_id || body.contactId || body.contact?.id || body.id;
+}
+
+function extraerMessageId(body) {
+  return body.message_id || body.messageId || body.message?.id || body.id || body.altId || body.message?.altId || null;
+}
+
+function extraerTexto(body) {
+  return typeof body.message === 'string' ? body.message : (body.message?.body || body.body || body.text || body.customData?.message || "");
+}
+
+function extraerAdjunto(body) {
+  if (body.attachments && body.attachments.length > 0) return true;
+  if (body.message?.attachments && body.message.attachments.length > 0) return true;
+  if (body.mediaUrl || body.media_url || body.fileUrl || body.document) return true;
+  const typeStr = (body.type || body.contentType || body.messageType || "").toString().toLowerCase();
+  if (typeStr.includes("pdf") || typeStr.includes("attachment") || typeStr.includes("media") || typeStr.includes("image") || typeStr.includes("audio") || typeStr.includes("document") || typeStr.includes("file")) return true;
+  const txt = extraerTexto(body).toLowerCase();
+  if (txt.includes(".pdf") || txt.includes(".jpg") || txt.includes(".jpeg") || txt.includes(".png") || txt.includes("comprobante") || txt.includes("recibo") || txt.includes("transferencia")) return true;
+  return false;
+}
+
+function handleWebhookEndpoint(req, res) {
+  res.status(200).json({ ok: true });
+
+  const contactId = extraerContactId(req.body);
+  const messageId = extraerMessageId(req.body);
+  const text = extraerTexto(req.body);
+  const hasAttachment = extraerAdjunto(req.body);
+
+  guard.ingest({
+    contactId,
+    messageId,
+    text,
+    hasAttachment,
+    raw: req.body
+  });
+}
+
+app.post('/webhook/ghl-message', handleWebhookEndpoint);
+app.post('/', handleWebhookEndpoint);
+
+app.get('/health', (req, res) => {
+  res.status(200).json(guard.healthSnapshot());
+});
+
+process.on('SIGINT', async () => {
+  console.log('🛑 Cerrando servidor limpiamente...');
+  await guard.shutdown();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  console.log('🛑 Cerrando servidor limpiamente...');
+  await guard.shutdown();
+  process.exit(0);
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT}`);
+  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con GHLState y Detección de Adjuntos PDF.`);
 });
