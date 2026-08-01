@@ -58,7 +58,6 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
         }
       };
 
-      // Modelo actualizado a gemini-2.0-flash activo
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,6 +66,9 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
 
       if (!res.ok) {
         const errText = await res.text();
+        if (res.status === 429) {
+          console.error(`[ERROR 429] Cuota o Facturación Excedida en Gemini API Key (Proyecto sin Billing o límite 0): ${errText}`);
+        }
         throw new Error(`Gemini API HTTP ${res.status}: ${errText}`);
       }
 
