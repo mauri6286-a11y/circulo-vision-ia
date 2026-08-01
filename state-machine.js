@@ -1,5 +1,6 @@
 import { getConfig } from './config-loader.js';
 import { clasificarIntencion } from './intencion-classifier.js';
+import { validarMensajeSaliente } from './guardrails.js';
 
 export const StateMachine = {
   async processMessage(contactId, userMessage, currentState = {}, options = {}) {
@@ -188,9 +189,25 @@ export const StateMachine = {
     }
 
     const combinedBody = replySnippets.join(" ");
+    const finalReplyText = buildReply(combinedBody);
+
+    // GUARDRAIL DE VALIDACIÓN SALIENTE DETERMINISTA
+    const guardrailCheck = validarMensajeSaliente(finalReplyText, config);
+
+    if (!guardrailCheck.ok) {
+      console.error(`[GUARDRAIL BLOQUEADO] ${contactId}: ${guardrailCheck.reason} | Texto intentado: "${finalReplyText}"`);
+      return {
+        action: 'HANDOFF_HUMAN',
+        reply: buildHandoffReply("Para confirmarte el presupuesto exacto,"),
+        patch: { funnel: 'TRASPASO_HUMANO' },
+        intent: intentResult,
+        guardrailBlocked: guardrailCheck
+      };
+    }
+
     return {
       action: 'REPLY_TEXT',
-      reply: buildReply(combinedBody),
+      reply: finalReplyText,
       patch,
       intent: intentResult
     };

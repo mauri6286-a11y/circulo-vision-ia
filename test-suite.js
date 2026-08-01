@@ -1,5 +1,6 @@
-﻿import { StateMachine } from './state-machine.js';
+import { StateMachine } from './state-machine.js';
 import { GHLState } from './ghl-state.js';
+import { validarMensajeSaliente } from './guardrails.js';
 
 let passed = 0;
 let total = 0;
@@ -15,7 +16,7 @@ function assert(condition, message) {
 }
 
 console.log("=================================================");
-console.log("🧪 INICIANDO SUITE DE PRUEBAS EXTENDIDA V1.1 (32 PRUEBAS) CON GHL-STATE");
+console.log("🧪 INICIANDO SUITE DE PRUEBAS EXTENDIDA V1.1 (34 PRUEBAS CON GUARDRAILS Y GHL-STATE)");
 console.log("=================================================\n");
 
 // 1. ANUNCIOS / PROMOS
@@ -138,7 +139,7 @@ assert(r29.reply.includes("disculpá la insistencia") && r29.patch.funnel === 'C
 const r30 = await StateMachine.processMessage('c30', 'que garantia especifica tiene este modelo?');
 assert(r30.action === 'HANDOFF_HUMAN', '30. Specific Product Guarantee Handoff');
 
-// --- PASO 8: GHLSTATE EN DISCO EFÍMERO ---
+// 31. GHLSTATE EN DISCO EFÍMERO
 console.log("\n=================================================");
 console.log("🧪 PRUEBAS DE PERSISTENCIA Y REGRESION");
 console.log("=================================================\n");
@@ -157,6 +158,17 @@ const store2 = new GHLState({ apiToken: token, locationId: locId, cacheTtlMs: 0 
 await store2.init();
 const cState2 = await store2.getState('Lf0WMSNLJQhqZMdpyFUc');
 assert(cState2.saludo_enviado === true && cState2.funnel === 'PRESUPUESTADO', '32. GHLState 2. Persistencia tras reinicio');
+
+// --- PASO 9: PRUEBAS DE GUARDRAILS ANTI-INVENCIÓN ---
+console.log("\n=================================================");
+console.log("🛡️ PRUEBAS DE GUARDRAILS ANTI-INVENCIÓN");
+console.log("=================================================\n");
+
+const guardrailPriceCheck = validarMensajeSaliente("El cristal antirreflejo cuesta $9.999.");
+assert(guardrailPriceCheck.ok === false && guardrailPriceCheck.reason.includes("Precio no autorizado"), '33. Guardrail Price Block ($9.999)');
+
+const guardrailDiscountCheck = validarMensajeSaliente("Te ofrecemos un 50% de descuento especial.");
+assert(guardrailDiscountCheck.ok === false && guardrailDiscountCheck.reason.includes("Descuento no autorizado"), '34. Guardrail Discount Block (50%)');
 
 console.log("\n=================================================");
 console.log(`📊 RESULTADO FINAL DE CALIDAD: ${passed}/${total} PRUEBAS APROBADAS (${Math.round(passed/total*100)}%)`);
