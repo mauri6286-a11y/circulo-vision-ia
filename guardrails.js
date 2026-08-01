@@ -22,25 +22,26 @@ export function validarMensajeSaliente(messageText, config = null) {
   const armPrecioDesde = cfg.datos_que_el_bot_informa?.armazones?.precio_desde;
   if (typeof armPrecioDesde === 'number') allowedPrices.add(armPrecioDesde);
 
-  // Extraer montos que inicien con $ (ej: $2.200, $2.490, $1.300, $3.200)
-  const priceMatches = messageText.match(/\$\s*\d{1,3}(?:\.\d{3})+|\$\s*\d+/g) || [];
+  // Extraer todos los bloques que comiencen con $ y contengan dígitos y puntos
+  const priceMatches = messageText.match(/\$\s*[\d.]+/g) || [];
 
-  for (const match of priceMatches) {
-    const cleaned = match.replace(/\$\s*/, '').trim();
+  for (const rawMatch of priceMatches) {
+    // Quitar $ y espacios
+    let clean = rawMatch.replace(/\$\s*/, '').trim();
 
-    let numericValue = 0;
-    if (/^\d{1,3}(\.\d{3})+$/.test(cleaned)) {
-      numericValue = parseInt(cleaned.replace(/\./g, ''), 10);
-    } else {
-      numericValue = parseInt(cleaned.replace(/[^\d]/g, ''), 10);
-    }
+    // Quitar puntos al final de la frase (ej: "$2.200." -> "2.200")
+    clean = clean.replace(/\.$/, '');
+
+    // Eliminar los puntos internos de separadores de miles (ej: "2.200" -> "2200")
+    let numericStr = clean.replace(/\./g, '');
+    let numericValue = parseInt(numericStr, 10);
 
     if (!isNaN(numericValue) && !allowedPrices.has(numericValue)) {
-      console.error(`[GUARDRAIL] precio no autorizado detectado: ${match} (${numericValue})`);
+      console.error(`[GUARDRAIL] precio no autorizado detectado: ${rawMatch} (${numericValue})`);
       return {
         ok: false,
-        reason: `Precio no autorizado detectado: ${match}`,
-        blockedValue: match
+        reason: `Precio no autorizado detectado: ${rawMatch} (interpretado como $${numericValue})`,
+        blockedValue: rawMatch
       };
     }
   }
