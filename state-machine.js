@@ -1,6 +1,6 @@
 import { getConfig } from './config-loader.js';
 import { clasificarIntencion } from './intencion-classifier.js';
-import { validarMensajeSaliente } from './guardrails.js';
+import { validarMensajeSaliente, formatMoney } from './guardrails.js';
 
 export const StateMachine = {
   async processMessage(contactId, userMessage, currentState = {}, options = {}) {
@@ -132,28 +132,28 @@ export const StateMachine = {
 
         if (prodSlug === 'antirreflejo') {
           const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
-          replySnippets.push(`El cristal con antirreflejo cuesta $${pAr.toLocaleString()} (solo cristal, armazones desde $${pArm.toLocaleString()}).`);
+          replySnippets.push(`El cristal con antirreflejo cuesta ${formatMoney(pAr)} (solo cristal, armazones desde ${formatMoney(pArm)}).`);
         } else if (prodSlug === 'blueblocker') {
           const pBlue = config.datos_que_el_bot_informa.cristales_simples.items.blueblocker.precio;
-          replySnippets.push(`El cristal Blueblocker (luz azul) cuesta $${pBlue.toLocaleString()} (armazones desde $${pArm.toLocaleString()}).`);
+          replySnippets.push(`El cristal Blueblocker (luz azul) cuesta ${formatMoney(pBlue)} (armazones desde ${formatMoney(pArm)}).`);
         } else if (prodSlug === 'blanco') {
           const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
-          replySnippets.push(`El cristal blanco cuesta $${pBlanco.toLocaleString()} (armazones aparte desde $${pArm.toLocaleString()}).`);
+          replySnippets.push(`El cristal blanco cuesta ${formatMoney(pBlanco)} (armazones aparte desde ${formatMoney(pArm)}).`);
         } else if (prodSlug === 'armazon') {
           patch.funnel = 'PRESUPUESTADO';
-          replySnippets.push(`Contamos con variedad de armazones desde $${pArm.toLocaleString()} (los cristales van aparte según la receta).`);
+          replySnippets.push(`Contamos con variedad de armazones desde ${formatMoney(pArm)} (los cristales van aparte según la receta).`);
         } else if (prodSlug && prodSlug.startsWith('bifocal')) {
           const pSinAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_sin_ar.precio;
           const pConAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_con_ar.precio;
           const pSmartSinAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_smart_sin_ar.precio;
           const pSmartConAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_smart_con_ar.precio;
-          replySnippets.push(`En cristales bifocales contamos con opciones estándar desde $${pSinAr.toLocaleString()} ($${pConAr.toLocaleString()} con antirreflejo) y la línea Bifocal Smart desde $${pSmartSinAr.toLocaleString()} ($${pSmartConAr.toLocaleString()} con AR). Precios solo del cristal (armazones aparte desde $${pArm.toLocaleString()}).`);
+          replySnippets.push(`En cristales bifocales contamos con opciones estándar desde ${formatMoney(pSinAr)} (${formatMoney(pConAr)} con antirreflejo) y la línea Bifocal Smart desde ${formatMoney(pSmartSinAr)} (${formatMoney(pSmartConAr)} con AR). Precios solo del cristal (armazones aparte desde ${formatMoney(pArm)}).`);
         } else {
           const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
           const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
           const pBlue = config.datos_que_el_bot_informa.cristales_simples.items.blueblocker.precio;
           patch.funnel = 'PRESUPUESTADO';
-          replySnippets.push(`Tenemos cristales desde $${pBlanco.toLocaleString()} (Blanco), $${pAr.toLocaleString()} (Antirreflejo) y $${pBlue.toLocaleString()} (Blueblocker). Armazones aparte desde $${pArm.toLocaleString()}.`);
+          replySnippets.push(`Tenemos cristales desde ${formatMoney(pBlanco)} (Blanco), ${formatMoney(pAr)} (Antirreflejo) y ${formatMoney(pBlue)} (Blueblocker). Armazones aparte desde ${formatMoney(pArm)}.`);
         }
       } else if (intent === 'horarios') {
         replySnippets.push(`Estamos en ${config.negocio.direccion} (atendemos ${config.negocio.horarios.texto}).`);
@@ -191,7 +191,6 @@ export const StateMachine = {
     const combinedBody = replySnippets.join(" ");
     const finalReplyText = buildReply(combinedBody);
 
-    // GUARDRAIL DE VALIDACIÓN SALIENTE DETERMINISTA
     const guardrailCheck = validarMensajeSaliente(finalReplyText, config);
 
     if (!guardrailCheck.ok) {

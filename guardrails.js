@@ -1,5 +1,10 @@
 import { getConfig } from './config-loader.js';
 
+export function formatMoney(num) {
+  if (typeof num !== 'number') return '';
+  return '$' + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
 export function validarMensajeSaliente(messageText, config = null) {
   const cfg = config || getConfig();
   if (!messageText || typeof messageText !== 'string') {
@@ -22,8 +27,14 @@ export function validarMensajeSaliente(messageText, config = null) {
   const armPrecioDesde = cfg.datos_que_el_bot_informa?.armazones?.precio_desde;
   if (typeof armPrecioDesde === 'number') allowedPrices.add(armPrecioDesde);
 
-  // Extraer todos los bloques que comiencen con $ y contengan dígitos y puntos
-  const priceMatches = messageText.match(/\$\s*[\d.]+/g) || [];
+  // Normalizar previamente el texto para colapsar espacios de miles ICU (non-breaking spaces \u00A0, \u202F) o comas entre dígitos
+  // Ejemplo: "$2\u00A0200" -> "$2.200", "$2,200" -> "$2.200"
+  const normalizedText = messageText
+    .replace(/(\$\s*\d+)[\s\u00A0\u202F]+(\d{3})/g, '$1.$2')
+    .replace(/(\$\s*\d+),(\d{3})/g, '$1.$2');
+
+  // Extraer todos los bloques que comiencen con $ y contengan dígitos, puntos o comas
+  const priceMatches = normalizedText.match(/\$\s*[\d,.\u00A0\u202F]+/g) || [];
 
   for (const rawMatch of priceMatches) {
     // Quitar $ y espacios
@@ -32,8 +43,8 @@ export function validarMensajeSaliente(messageText, config = null) {
     // Quitar puntos al final de la frase (ej: "$2.200." -> "2.200")
     clean = clean.replace(/\.$/, '');
 
-    // Eliminar los puntos internos de separadores de miles (ej: "2.200" -> "2200")
-    let numericStr = clean.replace(/\./g, '');
+    // Eliminar cualquier separador de miles interno (puntos, comas, espacios, \u00A0)
+    let numericStr = clean.replace(/[\u00A0\u202F\s.,]/g, '');
     let numericValue = parseInt(numericStr, 10);
 
     if (!isNaN(numericValue) && !allowedPrices.has(numericValue)) {
