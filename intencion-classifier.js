@@ -17,10 +17,10 @@ export async function clasificarIntencion({ mensaje, historial = [], config = nu
     try {
       const systemPrompt = `
 Sos el clasificador de intenciones en tiempo real para el agente de IA de ${cfg.negocio?.nombre || 'la óptica'}.
-Tu única tarea es analizar el mensaje del cliente y el historial de la conversación, y devolver UNICAMENTE un JSON válido con esta estructura exacta:
+Tu tarea es analizar el mensaje del cliente y el historial de la conversación, y devolver UNICAMENTE un JSON válido con esta estructura exacta:
 
 {
-  "intencion": "promo" | "consulta_precio" | "consulta_convenio" | "sin_receta" | "tengo_receta" | "lentes_de_sol" | "horarios" | "envios" | "cuotas" | "tiempo_entrega" | "test_gratis" | "saludo" | "agradecimiento" | "despedida" | "consulta_derivar_humano" | "otra",
+  "intenciones": ["promo" | "consulta_precio" | "consulta_convenio" | "sin_receta" | "tengo_receta" | "lentes_de_sol" | "horarios" | "envios" | "cuotas" | "tiempo_entrega" | "test_gratis" | "saludo" | "agradecimiento" | "despedida" | "consulta_derivar_humano" | "otra"],
   "entidades": {
     "producto": ${JSON.stringify(productosValidos)} | null,
     "convenio": ${JSON.stringify(conveniosActivos.concat(conveniosAConsultar))} | null,
@@ -32,14 +32,15 @@ Tu única tarea es analizar el mensaje del cliente y el historial de la conversa
 }
 
 REGLAS DE CLASIFICACIÓN RIGUROSAS:
-1. "sin_receta": Si el cliente indica que no tiene receta (ej: "no tengo receta", "la perdí", "la dejé en casa", "no la traje", "sin receta"), clasificar intencion: "sin_receta", tiene_receta: false, requiere_humano: false.
-2. "tengo_receta": Si el cliente indica que si tiene receta (ej: "tengo receta", "tengo la receta médica", "con receta"), clasificar intencion: "tengo_receta", tiene_receta: true, requiere_humano: false.
-3. "consulta_convenio":
-   - Si menciona un convenio activo (${conveniosActivos.join(', ')}), poner el slug exacto en entidades.convenio y requiere_humano: false.
-   - Si menciona UN CONVENIO NO LISTADO O PENDIENTE (ej: "antel", "ancap", "ute", "sayago", "fitlab", "mutualista"), poner el slug en entidades.convenio y exige SIEMPRE requiere_humano: true, razon_humano: "convenio_a_consultar". ¡NUNCA inventar un descuento no confirmado!
-4. "requiere_humano: true": Si pregunta por fotocromáticos/transitions, multifocales/varilux, cotización de lente completo armado (cristal + armazón sumados), reclamos, arreglos/patillas que se caen, agendamiento de turnos específicos, garantía de producto específico, preguntas fuera de tema (wifi, mascotas, estacionamiento), o convenios a consultar. Poner requiere_humano: true.
-5. "consulta_precio": Si pregunta precio de un producto puntual (ej: antirreflejo, blueblocker, cristal blanco, bifocal, armazón), clasificar intencion: "consulta_precio" y poner el slug exacto en entidades.producto.
-6. NO inventar datos. Tu único trabajo es clasificar en el JSON estructurado.
+1. SOPORTAR MÚLTIPLES INTENCIONES: Si el cliente hace varias preguntas en un mismo mensaje (ej: precio + cuotas + dirección), incluir TODAS las intenciones detectadas en el array "intenciones".
+2. "sin_receta": Si indica que no tiene receta ("no tengo receta", "la perdí", "la dejé en casa", "no la traje"), incluir "sin_receta", tiene_receta: false.
+3. "tengo_receta": Si indica que si tiene receta ("tengo receta", "con receta"), incluir "tengo_receta", tiene_receta: true.
+4. "consulta_convenio":
+   - Si menciona un convenio activo (${conveniosActivos.join(', ')}), poner el slug en entidades.convenio y requiere_humano: false.
+   - Si menciona UN CONVENIO NO LISTADO O PENDIENTE (ej: "antel", "ancap", "sayago", "fitlab"), poner el slug en entidades.convenio y exige requiere_humano: true, razon_humano: "convenio_a_consultar".
+5. "requiere_humano: true": Si pregunta por fotocromáticos, multifocales/varilux, lente completo armado, reclamos, adaptaciones, turnos, o preguntas fuera de tema (wifi, mascotas).
+6. "consulta_precio": Si pregunta precio de un producto puntual (antirreflejo, blueblocker, cristal blanco, bifocal, armazón), incluir "consulta_precio" y poner el slug exacto en entidades.producto.
+7. NO inventar datos.
 `;
 
       const payload = {
@@ -73,6 +74,10 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
       if (!rawText) throw new Error('Respuesta vacía de Gemini API');
 
       const resultJson = JSON.parse(rawText);
+      // Asegurar compatibilidad array intenciones
+      if (!Array.isArray(resultJson.intenciones) && resultJson.intencion) {
+        resultJson.intenciones = [resultJson.intencion];
+      }
       console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(resultJson));
       return resultJson;
     } catch (err) {
@@ -82,280 +87,143 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
     console.log('[DEBUG] GEMINI_API_KEY no detectada. Usando motor semántico estructural local.');
   }
 
-  // Normalizar acentos y typos frecuentes (kuanto -> cuanto, kristal -> cristal)
+  // Normalizar acentos y typos
   let lowerMsg = (mensaje || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   lowerMsg = lowerMsg.replace(/\bkuanto\b/g, "cuanto").replace(/\bkristal\b/g, "cristal").replace(/\barrefl/g, "antirrefle");
 
-  // Fuera de tema (wifi, mascotas, perros, estacionamiento) -> Deriva a humano
+  const intencionesSet = new Set();
+  const entidades = { producto: null, convenio: null, tiene_receta: null };
+  let requiere_humano = false;
+  let razon_humano = null;
+
+  // 1. Fuera de tema
   if (lowerMsg.includes("wifi") || lowerMsg.includes("mascota") || lowerMsg.includes("perro") || lowerMsg.includes("estacionamiento")) {
-    const res = {
-      intencion: "consulta_derivar_humano",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: true,
-      razon_humano: "otro",
-      resumen: "Pregunta fuera del alcance del bot (requiere respuesta de un asesor)."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+    intencionesSet.add("consulta_derivar_humano");
+    requiere_humano = true;
+    razon_humano = "otro";
   }
 
-  // Entrada por Promo / Ad
+  // 2. Promo
   if (lowerMsg.includes("promo") || lowerMsg.includes("source url") || lowerMsg.includes("headline") || lowerMsg.includes("fb.me") || lowerMsg.includes("instagram")) {
-    const res = {
-      intencion: "promo",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Entrada por anuncio o promo activa."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+    intencionesSet.add("promo");
   }
 
-  // Lentes de sol
+  // 3. Lentes de sol
   if (lowerMsg.includes("lentes de sol") || lowerMsg.includes("lente de sol") || lowerMsg.includes("gafas de sol") || (lowerMsg.includes("sol") && lowerMsg.includes("polariz"))) {
-    const res = {
-      intencion: "lentes_de_sol",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Consulta sobre lentes de sol."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+    intencionesSet.add("lentes_de_sol");
   }
 
-  // Tengo receta
-  if ((lowerMsg.includes("tengo receta") || lowerMsg.includes("con receta") || lowerMsg.includes("tengo la receta") || lowerMsg.includes("receta medica")) && !lowerMsg.includes("no tengo") && !lowerMsg.includes("no la tengo") && !lowerMsg.includes("perdi")) {
-    const res = {
-      intencion: "tengo_receta",
-      entidades: { producto: null, convenio: null, tiene_receta: true },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "El cliente indica que tiene receta médica."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
-  }
-
-  // Sin receta
+  // 4. Receta
   if (lowerMsg.includes("no tengo") || lowerMsg.includes("perdi") || lowerMsg.includes("deje") || lowerMsg.includes("traje") || lowerMsg.includes("sin receta")) {
-    const res = {
-      intencion: "sin_receta",
-      entidades: { producto: null, convenio: null, tiene_receta: false },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "El cliente no tiene receta médica."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+    intencionesSet.add("sin_receta");
+    entidades.tiene_receta = false;
+  } else if ((lowerMsg.includes("tengo receta") || lowerMsg.includes("con receta") || lowerMsg.includes("tengo la receta")) && !lowerMsg.includes("no tengo")) {
+    intencionesSet.add("tengo_receta");
+    entidades.tiene_receta = true;
   }
 
-  // Convenios
-  if (lowerMsg.includes("convenio") || lowerMsg.includes("descuento") || lowerMsg.includes("caja bancaria") || lowerMsg.includes("cjpb") || lowerMsg.includes("quimica") || lowerMsg.includes("ferrocarril") || lowerMsg.includes("sayago") || lowerMsg.includes("fitlab") || lowerMsg.includes("racing") || lowerMsg.includes("mutualista") || lowerMsg.includes("catolico") || lowerMsg.includes("evangelico") || lowerMsg.includes("bps") || lowerMsg.includes("antel") || lowerMsg.includes("ancap") || lowerMsg.includes("ute")) {
-    const convMatches = Object.keys(cfg.convenios?.activos || {}).filter(k => lowerMsg.includes(k.replace(/_/g, " ")) || (k === "sindicato_quimica" && lowerMsg.includes("quimica")) || (k === "caja_bancaria_cjpb" && (lowerMsg.includes("caja bancaria") || lowerMsg.includes("cjpb"))));
-
-    if (convMatches.length > 0 && !lowerMsg.includes("antel") && !lowerMsg.includes("sayago") && !lowerMsg.includes("fitlab")) {
-      const convSlug = convMatches[0];
-      const res = {
-        intencion: "consulta_convenio",
-        entidades: { producto: null, convenio: convSlug, tiene_receta: null },
-        requiere_humano: false,
-        razon_humano: null,
-        resumen: `Consulta sobre convenio ${convSlug}.`
-      };
-      console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-      return res;
+  // 5. Convenios
+  if (lowerMsg.includes("convenio") || lowerMsg.includes("descuento") || lowerMsg.includes("caja bancaria") || lowerMsg.includes("cjpb") || lowerMsg.includes("quimica") || lowerMsg.includes("ferrocarril") || lowerMsg.includes("sayago") || lowerMsg.includes("fitlab") || lowerMsg.includes("racing") || lowerMsg.includes("mutualista") || lowerMsg.includes("catolico") || lowerMsg.includes("evangelico") || lowerMsg.includes("bps") || lowerMsg.includes("antel") || lowerMsg.includes("ancap")) {
+    intencionesSet.add("consulta_convenio");
+    if (lowerMsg.includes("antel") || lowerMsg.includes("sayago") || lowerMsg.includes("fitlab") || lowerMsg.includes("racing") || lowerMsg.includes("mutualista")) {
+      requiere_humano = true;
+      razon_humano = "convenio_a_consultar";
+      entidades.convenio = lowerMsg.includes("antel") ? "antel" : "convenio_desconocido";
     } else {
-      // Convenios no confirmados / pendientes (ANTEL, Sayago, etc.) -> TRASPASO A HUMANO
-      const convSlug = lowerMsg.includes("antel") ? "antel" : "convenio_desconocido";
-      const res = {
-        intencion: "consulta_convenio",
-        entidades: { producto: null, convenio: convSlug, tiene_receta: null },
-        requiere_humano: true,
-        razon_humano: "convenio_a_consultar",
-        resumen: `Consulta sobre convenio a consultar (${convSlug}).`
-      };
-      console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-      return res;
+      if (lowerMsg.includes("quimica") || lowerMsg.includes("stiq")) entidades.convenio = "sindicato_quimica";
+      else if (lowerMsg.includes("catolico")) entidades.convenio = "circulo_catolico";
+      else if (lowerMsg.includes("evangelico")) entidades.convenio = "hospital_evangelico";
+      else if (lowerMsg.includes("ferrocarril")) entidades.convenio = "ferrocarril_norte";
+      else if (lowerMsg.includes("bps")) entidades.convenio = "bps";
+      else entidades.convenio = "caja_bancaria_cjpb";
     }
   }
 
-  // Derivaciones requeridas (fotocromáticos, varilux, lente completo, adaptaciones, turnos)
+  // 6. Derivaciones requeridas
   if (lowerMsg.includes("fotocrom") || lowerMsg.includes("transition") || lowerMsg.includes("varilux") || lowerMsg.includes("multifocal") || lowerMsg.includes("completo") || lowerMsg.includes("armado") || lowerMsg.includes("caen") || lowerMsg.includes("ajuste") || lowerMsg.includes("turno")) {
-    let razon = "fotocromaticos";
-    if (lowerMsg.includes("varilux") || lowerMsg.includes("multifocal")) razon = "varilux";
-    else if (lowerMsg.includes("completo") || lowerMsg.includes("armado")) razon = "lente_completo";
-    else if (lowerMsg.includes("caen") || lowerMsg.includes("ajuste")) razon = "ajustes_adaptacion";
-    else if (lowerMsg.includes("turno")) razon = "turnos";
-
-    const res = {
-      intencion: "consulta_derivar_humano",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: true,
-      razon_humano: razon,
-      resumen: `Derivación requerida a humano por ${razon}.`
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+    intencionesSet.add("consulta_derivar_humano");
+    requiere_humano = true;
+    if (lowerMsg.includes("fotocrom")) razon_humano = "fotocromaticos";
+    else if (lowerMsg.includes("varilux") || lowerMsg.includes("multifocal")) razon_humano = "varilux";
+    else if (lowerMsg.includes("completo") || lowerMsg.includes("armado")) razon_humano = "lente_completo";
+    else if (lowerMsg.includes("caen") || lowerMsg.includes("ajuste")) razon_humano = "ajustes_adaptacion";
+    else if (lowerMsg.includes("turno")) razon_humano = "turnos";
   }
 
-  // Tiempos de entrega
+  // 7. Precios / Productos
+  if (lowerMsg.includes("antirreflejo") || lowerMsg.includes("antireflejo") || lowerMsg.includes("blueblocker") || lowerMsg.includes("blanco") || lowerMsg.includes("armazon") || lowerMsg.includes("marcos") || lowerMsg.includes("bifocal") || lowerMsg.includes("precio") || lowerMsg.includes("cuanto sale") || lowerMsg.includes("cuanto me sale") || lowerMsg.includes("incuyen") || lowerMsg.includes("incluyen")) {
+    intencionesSet.add("consulta_precio");
+    if (lowerMsg.includes("bifocal")) entidades.producto = "bifocal_sin_ar";
+    else if (lowerMsg.includes("blueblocker")) entidades.producto = "blueblocker";
+    else if (lowerMsg.includes("blanco")) entidades.producto = "blanco";
+    else if (lowerMsg.includes("armazon") || lowerMsg.includes("marcos") || lowerMsg.includes("incuyen") || lowerMsg.includes("incluyen")) entidades.producto = "armazon";
+    else if (lowerMsg.includes("antirreflejo") || lowerMsg.includes("antireflejo")) entidades.producto = "antirreflejo";
+  }
+
+  // 8. Cuotas
+  if (lowerMsg.includes("cuota") || lowerMsg.includes("cuotas") || lowerMsg.includes("tarjeta") || lowerMsg.includes("credito") || lowerMsg.includes("financiar")) {
+    intencionesSet.add("cuotas");
+  }
+
+  // 9. Envíos
+  if (lowerMsg.includes("envio") || lowerMsg.includes("envios") || lowerMsg.includes("interior") || lowerMsg.includes("domicilio")) {
+    intencionesSet.add("envios");
+  }
+
+  // 10. Horarios / Ubicación
+  if (lowerMsg.includes("horario") || lowerMsg.includes("abren") || lowerMsg.includes("direccion") || lowerMsg.includes("donde") || lowerMsg.includes("estan") || lowerMsg.includes("quedan")) {
+    intencionesSet.add("horarios");
+  }
+
+  // 11. Tiempos de entrega
   if (lowerMsg.includes("demora") || lowerMsg.includes("demoran") || lowerMsg.includes("tarda") || lowerMsg.includes("tardan") || lowerMsg.includes("entrega")) {
-    const res = {
-      intencion: "tiempo_entrega",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Consulta sobre tiempos de entrega."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+    intencionesSet.add("tiempo_entrega");
   }
 
-  // Garantías
+  // 12. Garantías
   if (lowerMsg.includes("garantia")) {
     if (lowerMsg.includes("especifica") || lowerMsg.includes("este modelo")) {
-      const res = {
-        intencion: "consulta_derivar_humano",
-        entidades: { producto: null, convenio: null, tiene_receta: null },
-        requiere_humano: true,
-        razon_humano: "garantia_producto_especifico",
-        resumen: "Consulta de garantía específica de producto."
-      };
-      console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-      return res;
+      intencionesSet.add("consulta_derivar_humano");
+      requiere_humano = true;
+      razon_humano = "garantia_producto_especifico";
+    } else {
+      intencionesSet.add("garantias");
     }
-
-    const res = {
-      intencion: "garantias",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Consulta de garantía de adaptación."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
   }
 
-  // Envíos
-  if (lowerMsg.includes("envio") || lowerMsg.includes("interior") || lowerMsg.includes("domicilio")) {
-    const res = {
-      intencion: "envios",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Consulta de envíos a domicilio."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
-  }
-
-  // Cuotas
-  if (lowerMsg.includes("cuota") || lowerMsg.includes("tarjeta") || lowerMsg.includes("credito") || lowerMsg.includes("financiar")) {
-    const res = {
-      intencion: "cuotas",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Consulta de cuotas y medios de pago."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
-  }
-
-  // Test gratis / Chequeo
+  // 13. Test gratis / Chequeo
   if (lowerMsg.includes("examen") || lowerMsg.includes("gratis") || lowerMsg.includes("test") || lowerMsg.includes("chequeo")) {
-    const res = {
-      intencion: "test_gratis",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Consulta de test visual gratis."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+    intencionesSet.add("test_gratis");
   }
 
-  // Agradecimientos
+  // 14. Agradecimientos
   if (lowerMsg.includes("gracias") || lowerMsg.includes("impecable") || lowerMsg.includes("buenisimo")) {
-    const res = {
-      intencion: "agradecimiento",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Agradecimiento del cliente."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+    intencionesSet.add("agradecimiento");
   }
 
-  // Despedidas
+  // 15. Despedidas
   if (lowerMsg.includes("saludos") || lowerMsg.includes("que pases bien") || lowerMsg.includes("igualmente")) {
-    const res = {
-      intencion: "despedida",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Despedida del cliente."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+    intencionesSet.add("despedida");
   }
 
-  // Consulta de precio antirreflejo / blueblocker / blanco / armazón / bifocal
-  if (lowerMsg.includes("antirreflejo") || lowerMsg.includes("antireflejo") || lowerMsg.includes("blueblocker") || lowerMsg.includes("luz azul") || lowerMsg.includes("blanco") || lowerMsg.includes("armazon") || lowerMsg.includes("marcos") || lowerMsg.includes("bifocal") || lowerMsg.includes("precio") || lowerMsg.includes("cuanto sale") || lowerMsg.includes("incuyen") || lowerMsg.includes("incluyen")) {
-    let prodSlug = "antirreflejo";
-    if (lowerMsg.includes("blueblocker") || lowerMsg.includes("luz azul")) prodSlug = "blueblocker";
-    else if (lowerMsg.includes("blanco")) prodSlug = "blanco";
-    else if (lowerMsg.includes("armazon") || lowerMsg.includes("marcos") || lowerMsg.includes("incuyen") || lowerMsg.includes("incluyen")) prodSlug = "armazon";
-    else if (lowerMsg.includes("bifocal")) prodSlug = "bifocal_sin_ar";
-
-    const res = {
-      intencion: "consulta_precio",
-      entidades: { producto: prodSlug, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: `Consulta de precio para ${prodSlug}.`
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+  // 16. Saludo / Ambiguo
+  if (intencionesSet.size === 0 && (lowerMsg.includes("hola") || lowerMsg.includes("necesito") || lowerMsg.includes("lentes"))) {
+    intencionesSet.add("saludo");
   }
 
-  // Horarios / Ubicación
-  if (lowerMsg.includes("horario") || lowerMsg.includes("abren") || lowerMsg.includes("direccion") || lowerMsg.includes("donde")) {
-    const res = {
-      intencion: "horarios",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Consulta de horarios y dirección."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
+  const intencionesList = Array.from(intencionesSet);
+  if (intencionesList.length === 0) {
+    intencionesList.push("otra");
   }
 
-  // Mensaje ambiguo general ("hola necesito lentes") -> saludo / consulta general
-  if (lowerMsg.includes("necesito") || lowerMsg.includes("busco") || lowerMsg.includes("lentes")) {
-    const res = {
-      intencion: "saludo",
-      entidades: { producto: null, convenio: null, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: "Consulta general de lentes (ambigua)."
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
-  }
-
-  // Fallback final neutro seguro
-  const resFallback = {
-    intencion: "otra",
-    entidades: { producto: null, convenio: null, tiene_receta: null },
-    requiere_humano: false,
-    razon_humano: null,
-    resumen: "Mensaje general o sin clasificación específica."
+  const res = {
+    intenciones: intencionesList,
+    entidades,
+    requiere_humano,
+    razon_humano,
+    resumen: `Intenciones detectadas: ${intencionesList.join(", ")}.`
   };
-  console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(resFallback));
-  return resFallback;
+
+  console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
+  return res;
 }
