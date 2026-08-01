@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import { StateMachine } from './state-machine.js';
 import { WebhookGuard } from './webhook-guard.js';
 import { GHLState } from './ghl-state.js';
+import { getConfig } from './config-loader.js';
 
 dotenv.config();
 
@@ -16,8 +17,11 @@ const NICO_USER_ID = "Dm9trLIiq2sJmRCsgqrH"; // ID de Nico
 const PIPELINE_ID = "wyP2TvxIOaDFD6g5jz4s"; // Pipeline de Ventas - Óptica Círculo Visión
 const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead
 const OUR_BOT_APP_ID = "6a498c97418d7351792c4b78"; // ID de la app de nuestro bot
-const STAFF_WINDOW_MS = 30 * 60 * 1000; // Ventana de 30 minutos para considerar intervención humana activa
-const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000; // Ventana de 24 horas para cron de liberación automática
+
+const config = getConfig();
+
+const STAFF_WINDOW_MS = (config.reglas_de_control?.ventana_staff_minutos || 30) * 60 * 1000;
+const TWENTY_FOUR_HOURS_MS = (config.reglas_de_control?.liberacion_tag_horas || 24) * 60 * 60 * 1000;
 
 // Memoria de deduplicación de respuestas salientes consecutivas por contacto
 const lastSentReplies = new Map();
@@ -35,8 +39,9 @@ function normalizeText(txt) {
 }
 
 function esHorarioLaboralUruguay() {
+  const currentCfg = getConfig();
   const now = new Date();
-  const options = { timeZone: 'America/Montevideo', hour12: false, weekday: 'short', hour: '2-digit' };
+  const options = { timeZone: currentCfg.negocio?.zona_horaria || 'America/Montevideo', hour12: false, weekday: 'short', hour: '2-digit' };
   const formatter = new Intl.DateTimeFormat('es-UY', options);
   const parts = formatter.formatToParts(now);
   const map = {};
@@ -55,7 +60,11 @@ function esHorarioLaboralUruguay() {
 
 // CRON JOB: Revisa todos los contactos con tag atencion_humana y libera automáticamente los que tengan +24hs sin staff
 async function ejecutarCronLiberacion24hs() {
-  console.log('[CRON] Ejecutando revisión periódica de liberación de tag atencion_humana (24hs)...');
+  const currentCfg = getConfig();
+  const relHours = currentCfg.reglas_de_control?.liberacion_tag_horas || 24;
+  const relMs = relHours * 60 * 60 * 1000;
+
+  console.log(`[CRON] Ejecutando revisión periódica de liberación de tag atencion_humana (${relHours}hs)...`);
   try {
     const res = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${GHL_LOCATION_ID}&query=atencion_humana&limit=100`, {
       headers: {
@@ -113,7 +122,7 @@ async function ejecutarCronLiberacion24hs() {
       const lastStaffTs = new Date(lastStaffMsg.dateAdded).getTime();
       const elapsedMs = now - lastStaffTs;
 
-      if (elapsedMs >= TWENTY_FOUR_HOURS_MS) {
+      if (elapsedMs >= relMs) {
         // Remover tag atencion_humana de GHL
         await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}/tags`, {
           method: 'DELETE',
@@ -131,11 +140,11 @@ async function ejecutarCronLiberacion24hs() {
           saludo_enviado: true
         });
 
-        console.log(`[CRON] Tag atencion_humana liberado por 24hs para ${contactId}, último staff: ${lastStaffMsg.dateAdded}`);
+        console.log(`[CRON] Tag atencion_humana liberado por ${relHours}hs para ${contactId}, último staff: ${lastStaffMsg.dateAdded}`);
       }
     }
   } catch (err) {
-    console.error('[CRON] Error en la liberación de 24hs:', err.message);
+    console.error(`[CRON] Error en la liberación de ${relHours}hs:`, err.message);
   }
 }
 
@@ -143,8 +152,11 @@ async function ejecutarCronLiberacion24hs() {
 setInterval(ejecutarCronLiberacion24hs, 30 * 60 * 1000);
 setTimeout(ejecutarCronLiberacion24hs, 5000);
 
-// Consulta la API oficial de GHL con ventana de tiempo para intervención del Staff (30 min)
+// Consulta la API oficial de GHL con ventana de tiempo para intervención del Staff
 async function checkGHLHistoryAndStaff(contactId) {
+  const currentCfg = getConfig();
+  const windowMs = (currentCfg.reglas_de_control?.ventana_staff_minutos || 30) * 60 * 1000;
+
   try {
     const res = await fetch(`https://services.leadconnectorhq.com/conversations/search?locationId=${GHL_LOCATION_ID}&contactId=${contactId}`, {
       headers: {
@@ -200,7 +212,7 @@ async function checkGHLHistoryAndStaff(contactId) {
       const msgTs = new Date(m.dateAdded).getTime();
       const elapsedMin = Math.round((now - msgTs) / 60000);
 
-      if (now - msgTs <= STAFF_WINDOW_MS && msgTs >= lastInboundTs) {
+      if (now - msgTs <= windowMs && msgTs >= lastInboundTs) {
         isStaffActive = true;
         console.log(`[DEBUG] Staff detectado por mensaje: "${bodyText || '[Nota de voz/Adjunto]'}" del ${m.dateAdded} (hace ${elapsedMin} min)`);
         break;
@@ -341,6 +353,7 @@ async function addTagToContact(contactId, tag) {
 
 // Lógica de procesamiento de ráfagas contra GHL Custom Fields (ghl-state)
 async function procesarLoteDeMensajes(contactId, messages) {
+  const currentCfg = getConfig();
   const textoCompleto = messages.map(m => m.text).filter(Boolean).join('\n').trim();
   console.log(`[DEBUG] Ráfaga entrante para contacto ${contactId}: "${textoCompleto}"`);
 
@@ -389,10 +402,12 @@ async function procesarLoteDeMensajes(contactId, messages) {
     console.log(`📎 Adjunto/PDF o mensaje sin texto detectado para ${contactId}. Enviando mensaje corto de recibido y pasando a humano...`);
     const isHours = esHorarioLaboralUruguay();
     const confirmReply = isHours
-      ? "¡Recibido! Le paso tu archivo a nuestro equipo, que te va a responder en breve por acá. 😊"
-      : "¡Recibido! Le dejo tu archivo a nuestro equipo. Te responden apenas abramos en nuestro horario de atención (Lun a Vie 9 a 19 hs, Sáb 9 a 14 hs). ¡Muchas gracias!";
+      ? currentCfg.mensajes?.handoff_en_horario
+      : currentCfg.mensajes?.handoff_fuera_horario;
 
-    await sendGHLMessage(contactId, confirmReply);
+    const finalConfirm = `${currentCfg.mensajes?.adjunto_recibido || "¡Recibido!"} ${confirmReply}`;
+
+    await sendGHLMessage(contactId, finalConfirm);
     await addTagToContact(contactId, "atencion_humana");
     await store.setState(contactId, {
       funnel: 'TRASPASO_HUMANO',
@@ -438,8 +453,10 @@ async function procesarLoteDeMensajes(contactId, messages) {
   return replyText;
 }
 
+const debounceSec = config.reglas_de_control?.debounce_rafaga_segundos || 7;
+
 export const guard = new WebhookGuard({
-  debounceMs: 7000,
+  debounceMs: debounceSec * 1000,
   processBatch: procesarLoteDeMensajes,
   isHumanHandling: verificarTagHumano,
   sendReply: async (contactId, texto) => {
@@ -508,5 +525,6 @@ process.on('SIGTERM', async () => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Mensajes de Derivación Contextuales por Horario.`);
+  const loadedCfg = getConfig();
+  console.log(`🤖 Agente IA Omnicanal [${loadedCfg._meta?.cliente || "Desconocido"}] listo en puerto ${PORT} con Configuración Externa.`);
 });

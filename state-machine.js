@@ -1,5 +1,8 @@
-﻿export const StateMachine = {
+﻿import { getConfig } from './config-loader.js';
+
+export const StateMachine = {
   processMessage(contactId, userMessage, currentState = {}) {
+    const config = getConfig();
     const msg = userMessage ? userMessage.toLowerCase().trim() : "";
     const yaSaludado = Boolean(currentState.saludo_enviado);
     const yaPreguntoReceta = Boolean(currentState.preguntado_receta_chequeo);
@@ -13,7 +16,7 @@
 
     const buildHandoffReply = (reasonText = "") => {
       const now = new Date();
-      const options = { timeZone: 'America/Montevideo', hour12: false, weekday: 'short', hour: '2-digit' };
+      const options = { timeZone: config.negocio.zona_horaria || 'America/Montevideo', hour12: false, weekday: 'short', hour: '2-digit' };
       const formatter = new Intl.DateTimeFormat('es-UY', options);
       const parts = formatter.formatToParts(now);
       const map = {};
@@ -35,19 +38,16 @@
       }
 
       const prefix = reasonText ? `${reasonText.trim()} ` : "";
+      const handoffText = inHours ? config.mensajes.handoff_en_horario : config.mensajes.handoff_fuera_horario;
 
-      if (inHours) {
-        return `${prefix}Le paso tu consulta a nuestro equipo, que te va a responder en breve por acá. 😊 [SOLICITA_HUMANO]`.trim();
-      } else {
-        return `${prefix}Le dejo tu consulta a nuestro equipo. Te responden apenas abramos en nuestro horario de atención (Lun a Vie 9 a 19 hs, Sáb 9 a 14 hs). ¡Muchas gracias! [SOLICITA_HUMANO]`.trim();
-      }
+      return `${prefix}${handoffText} [SOLICITA_HUMANO]`.trim();
     };
 
     // PASO 6 — MENSAJES SIN TEXTO / ADJUNTOS / COMPROBANTES / PDF
     if (!msg || msg === "[adjunto]" || msg.includes(".pdf") || msg.includes("comprobante") || msg.includes("recibo") || msg.includes("transferencia") || msg.includes("pago realizado")) {
       return {
         action: 'HANDOFF_HUMAN',
-        reply: buildHandoffReply("¡Recibido!"),
+        reply: `${config.mensajes.adjunto_recibido} [SOLICITA_HUMANO]`,
         patch: { funnel: 'TRASPASO_HUMANO' }
       };
     }
@@ -148,13 +148,13 @@
       if (yaPreguntoReceta || msg.includes("ya te dije") || msg.includes("ya dije")) {
         return {
           action: 'REPLY_TEXT',
-          reply: buildReply("¡Entendido, disculpá la insistencia! Como no tenés receta, lo resolvemos súper fácil con un chequeo visual 100% GRATIS en nuestro local de Av. Millán 4494 para hacerte la receta en el momento. ¿Te queda bien pasar entre semana (9 a 19 hs) o un sábado (9 a 14 hs)?"),
+          reply: buildReply(`¡Entendido, disculpá la insistencia! ${config.mensajes.sin_receta}`),
           patch
         };
       } else {
         return {
           action: 'REPLY_TEXT',
-          reply: buildReply("¡Sin ningún problema! Lo resolvemos coordinando un chequeo visual 100% GRATIS en nuestro local de Av. Millán 4494 para hacer la receta en el momento. ¿Te queda mejor pasar entre semana o un sábado?"),
+          reply: buildReply(`¡Sin ningún problema! ${config.mensajes.sin_receta}`),
           patch
         };
       }
@@ -176,17 +176,23 @@
       patch.preguntado_receta_chequeo = true;
       return {
         action: 'REPLY_TEXT',
-        reply: buildReply("Veo que nos escribes por nuestra promo activa. En Óptica Círculo Visión (Av. Millán 4494) contamos con test visual 100% GRATIS.", "¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"),
+        reply: buildReply(`Veo que nos escribes por nuestra promo activa. En ${config.negocio.nombre} (${config.negocio.direccion}) contamos con test visual 100% GRATIS.`, "¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"),
         patch
       };
     }
 
-    // 12. BIFOCALES
+    // 12. BIFOCALES (PRECIOS DESDE CONFIG)
     if (msg.includes("bifocal") || msg.includes("bifocales")) {
+      const pSinAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_sin_ar.precio;
+      const pConAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_con_ar.precio;
+      const pSmartSinAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_smart_sin_ar.precio;
+      const pSmartConAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_smart_con_ar.precio;
+      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
+
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "En cristales bifocales contamos con opciones estándar desde $5.490 ($7.490 con antirreflejo) y la línea Bifocal Smart de lumen invisible desde $6.490 ($8.490 con antirreflejo). Precios solo del cristal (armazones aparte desde $2.490).",
+          `En cristales bifocales contamos con opciones estándar desde $${pSinAr.toLocaleString()} ($${pConAr.toLocaleString()} con antirreflejo) y la línea Bifocal Smart de lumen invisible desde $${pSmartSinAr.toLocaleString()} ($${pSmartConAr.toLocaleString()} con antirreflejo). Precios solo del cristal (armazones aparte desde $${pArm.toLocaleString()}).`,
           "¿Tenés la foto de tu receta a mano para asesorarte mejor?"
         ),
         patch
@@ -195,10 +201,13 @@
 
     // 13. PRECIO ESPECÍFICO: ANTIRREFLEJO
     if (msg.includes("antirreflejo") || msg.includes("antireflejo") || msg.includes("ar ")) {
+      const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
+      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
+
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "El cristal con antirreflejo tiene un costo de $2.200 (solo cristal, el armazón va aparte desde $2.490).",
+          `El cristal con antirreflejo tiene un costo de $${pAr.toLocaleString()} (solo cristal, el armazón va aparte desde $${pArm.toLocaleString()}).`,
           "¿Es para cerca, lejos o bifocal así te confirmamos exacto?"
         ),
         patch
@@ -207,10 +216,13 @@
 
     // 14. PRECIO ESPECÍFICO: BLUEBLOCKER / LUZ AZUL
     if (msg.includes("blueblocker") || msg.includes("blue blocker") || msg.includes("luz azul") || msg.includes("pantalla") || msg.includes("computadora")) {
+      const pBlue = config.datos_que_el_bot_informa.cristales_simples.items.blueblocker.precio;
+      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
+
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "El cristal con filtro Blueblocker (luz azul para pantallas) cuesta $3.200 (solo cristal, armazones desde $2.490).",
+          `El cristal con filtro Blueblocker (luz azul para pantallas) cuesta $${pBlue.toLocaleString()} (solo cristal, armazones desde $${pArm.toLocaleString()}).`,
           "¿Tenés receta médica o precisás coordinar un chequeo gratis?"
         ),
         patch
@@ -219,10 +231,13 @@
 
     // 15. PRECIO ESPECÍFICO: CRISTAL BLANCO / COMÚN
     if (msg.includes("blanco") || msg.includes("cristal comun") || msg.includes("cristal común") || msg.includes("cristal simple") || msg.includes("mas economico") || msg.includes("más económico")) {
+      const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
+      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
+
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "El cristal blanco estándar tiene un costo de $1.300 (solo cristal, armazones aparte desde $2.490).",
+          `El cristal blanco estándar tiene un costo de $${pBlanco.toLocaleString()} (solo cristal, armazones aparte desde $${pArm.toLocaleString()}).`,
           "¿Querés consultar presupuesto con tu receta o coordinar chequeo gratis?"
         ),
         patch
@@ -268,7 +283,7 @@
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "Estamos en Av. Millán 4494. Atendemos de Lunes a Viernes de 09:00 a 19:00 hs y Sábados de 09:00 a 14:00 hs. Podés pasar a probarte los armazones que gustes en cualquier momento.",
+          `Estamos en ${config.negocio.direccion}. Atendemos en horario de ${config.negocio.horarios.texto}. Podés pasar a probarte los armazones que gustes en cualquier momento.`,
           "¿Precisás receta o querés coordinar chequeo gratis?"
         ),
         patch
@@ -277,11 +292,12 @@
 
     // 20. ARMAZONES
     if (msg.includes("armazon") || msg.includes("armazón") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos") || msg.includes("incuyen") || msg.includes("incluyen")) {
+      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
       patch.funnel = 'PRESUPUESTADO';
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "Contamos con variedad de armazones desde $2.490 (los cristales van aparte según la receta).",
+          `Contamos con variedad de armazones desde $${pArm.toLocaleString()} (los cristales van aparte según la receta).`,
           "¿Buscás armazones de hombre, dama, niños o querés probarte en el local?"
         ),
         patch
@@ -290,11 +306,16 @@
 
     // 21. PRECIOS GENERALES
     if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cuánto sale") || msg.includes("cuánto me saldría") || msg.includes("cristal") || msg.includes("precios") || msg.includes("cotiz")) {
+      const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
+      const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
+      const pBlue = config.datos_que_el_bot_informa.cristales_simples.items.blueblocker.precio;
+      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
+
       patch.funnel = 'PRESUPUESTADO';
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "El precio depende del cristal que necesites: tenemos cristales desde $1.300 (Blanco), $2.200 (Antirreflejo) y $3.200 (Blueblocker). Los armazones van aparte desde $2.490.",
+          `El precio depende del cristal que necesites: tenemos cristales desde $${pBlanco.toLocaleString()} (Blanco), $${pAr.toLocaleString()} (Antirreflejo) y $${pBlue.toLocaleString()} (Blueblocker). Los armazones van aparte desde $${pArm.toLocaleString()}.`,
           "¿Tenés tu receta a mano para darte el precio exacto?"
         ),
         patch
@@ -324,7 +345,7 @@
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "Estamos en Av. Millán 4494 (Montevideo). Atendemos Lunes a Viernes de 9 a 19 hs y Sábados de 9 a 14 hs.",
+          `Estamos en ${config.negocio.direccion}. Atendemos en horario de ${config.negocio.horarios.texto}.`,
           "¿Tenés receta o preferís un chequeo gratis?"
         ),
         patch
@@ -354,7 +375,7 @@
       patch.preguntado_receta_chequeo = true;
       return {
         action: 'REPLY_TEXT',
-        reply: "¡Hola! 😊 En Óptica Círculo Visión (Av. Millán 4494) hacemos test visual 100% GRATIS. ¿Ya tenés tu receta médica o querés coordinar el chequeo gratis en el local?",
+        reply: `¡Hola! 😊 En ${config.negocio.nombre} (${config.negocio.direccion}) hacemos test visual 100% GRATIS. ¿Ya tenés tu receta médica o querés coordinar el chequeo gratis en el local?`,
         patch
       };
     }
