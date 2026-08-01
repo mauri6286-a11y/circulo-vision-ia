@@ -2,15 +2,16 @@
   "_meta": {
     "cliente": "Óptica Círculo Visión",
     "rubro": "óptica / salud visual",
-    "version_config": "1.0",
+    "version_config": "1.1",
     "ultima_actualizacion": "2026-08-01",
-    "nota": "Fuente única de verdad del bot. Todo dato duro sale de acá. El motor NO tiene datos hardcodeados."
+    "nota": "Fuente única de verdad del bot. Todo dato duro sale de acá. El motor NO tiene datos hardcodeados. v1.1: enriquecido con convenios, tiempos de entrega, garantías, envíos y cuotas (relevamiento con Nico/Pato)."
   },
 
   "negocio": {
     "nombre": "Óptica Círculo Visión",
     "direccion": "Av. Millán 4494, Montevideo",
     "telefono": "091 478 282",
+    "whatsapp_oficial": "091 478 282",
     "zona_horaria": "America/Montevideo",
     "horarios": {
       "texto": "Lunes a Viernes de 09:00 a 19:00 hs y Sábados de 09:00 a 14:00 hs",
@@ -62,10 +63,54 @@
     "El bot nunca suma cristal + armazón para dar un total: eso es cotización personalizada y va a humano."
   ],
 
+  "tratamientos_destacados": {
+    "descripcion": "Cristales y tratamientos que el negocio quiere promocionar.",
+    "items": ["Filtro de Luz Azul (Blue Defense)", "Antirreflex Premium", "Fotocromáticos (Transitions)"],
+    "nota": "Fotocromáticos/Transitions se promocionan pero el PRECIO va a humano (no está cargado)."
+  },
+
+  "tiempos_de_entrega": {
+    "monofocales_estandar": "aproximadamente 3 días hábiles (si llegan antes, mejor)",
+    "multifocales_progresivos": "aproximadamente 5 días hábiles"
+  },
+
+  "garantias": {
+    "adaptacion": "Todos los productos tienen garantía; la de adaptación depende de cada producto, en general 60 días.",
+    "nota": "Si el cliente pregunta por la garantía específica de un producto puntual, derivar a humano para confirmar."
+  },
+
+  "envios": {
+    "hace_envios": true,
+    "texto": "Hacemos envíos a domicilio. Pero la toma de medidas se hace sí o sí en el local (Av. Millán 4494).",
+    "toma_medidas_solo_en_local": true
+  },
+
+  "medios_de_pago": {
+    "texto": "Aceptamos todas las tarjetas hasta 12 cuotas sin recargo, incluyendo Compra Ágil y Pago Después.",
+    "cuotas_sin_recargo": 12
+  },
+
+  "convenios": {
+    "descripcion": "Convenios y beneficios ACTIVOS. El bot puede informar el descuento del convenio si el cliente lo menciona. Para aplicarlo/validarlo en la compra, se coordina en el local.",
+    "activos": {
+      "caja_bancaria_cjpb": { "nombre": "Caja Bancaria (CJPB)", "descuento": "15% efectivo, 10% débito, 5% crédito" },
+      "circulo_catolico":   { "nombre": "Círculo Católico (funcionarios)", "descuento": "15% efectivo, 10% débito, 5% crédito" },
+      "hospital_evangelico":{ "nombre": "Hospital Evangélico (funcionarios)", "descuento": "15% efectivo, 10% débito, 5% crédito" },
+      "sindicato_quimica":  { "nombre": "Sindicato Industria Química", "descuento": "20% efectivo, 15% débito, 5% crédito; 15% en reparaciones; ajustes sin costo" },
+      "ferrocarril_norte":  { "nombre": "Cuadro de fútbol Ferrocarril Norte", "descuento": "10% descuento general, 5% en contactología" },
+      "bps": { "nombre": "BPS (recetas con subsidio)", "descuento": "Subsidio BPS. El cliente debe llevar la documentación al local.", "requisito_pendiente": "CONFIRMAR con Nico qué documento exacto debe llevar (ej: cédula + receta médica)" }
+    },
+    "a_consultar": {
+      "equipos_liga_mvd": { "nombre": "Equipos de Liga Montevideo", "descuento": "10% descuento general, 5% (contactología). CONSULTAR/confirmar." },
+      "mutualistas_sindicatos": { "nombre": "Mutualistas / Sindicatos (Sayago, Racing, Fitlab, etc.)", "descuento": "PENDIENTE confirmar con Nico el descuento para socios." },
+      "gimnasios": { "nombre": "Gimnasios (Crossfit Salvaje, Vulcano)", "descuento": "Info ya existente — confirmar detalle con Nico." }
+    }
+  },
+
   "servicios": {
     "chequeo_gratis": {
       "activo": true,
-      "descripcion": "Chequeo visual 100% gratis en el local para hacer la receta en el momento.",
+      "descripcion": "Test visual / control de vista 100% gratis en el local, aunque no compren el lente.",
       "cuando_ofrecerlo": "Cuando el cliente no tiene receta o quiere coordinar un control."
     }
   },
@@ -73,8 +118,8 @@
   "siempre_a_humano": {
     "descripcion": "Temas que el bot NUNCA resuelve: deriva a una persona con tag atencion_humana + funnel TRASPASO_HUMANO.",
     "temas": [
-      "fotocromaticos",
-      "transitions",
+      "fotocromaticos_precio",
+      "transitions_precio",
       "varilux",
       "multifocales",
       "cotizacion_lente_completo_armado",
@@ -83,9 +128,9 @@
       "lentes_de_contacto",
       "reclamos",
       "turnos_agendamiento",
-      "obras_sociales_convenios",
       "ajustes_adaptacion_armazon",
-      "colaboraciones"
+      "colaboraciones",
+      "garantia_producto_especifico"
     ]
   },
 
@@ -94,11 +139,19 @@
     "ejemplos": ["reclamo", "problema con", "hablar con el dueño", "urgente", "se me caen", "ajuste", "colaborar", "turno"]
   },
 
+  "handoff": {
+    "notificar_a": "Nico",
+    "descripcion": "Cuando un cliente pide hablar con una persona, se notifica primero a Nico."
+  },
+
   "mensajes": {
     "handoff_en_horario": "Le paso tu consulta a nuestro equipo, que te va a responder en breve por acá. 😊",
     "handoff_fuera_horario": "Le dejo tu consulta a nuestro equipo. Te responden apenas abramos en nuestro horario de atención (Lun a Vie 9 a 19 hs, Sáb 9 a 14 hs). ¡Muchas gracias!",
     "sin_receta": "Como no tenés receta, lo resolvemos súper fácil con un chequeo visual 100% GRATIS en nuestro local de Av. Millán 4494 para hacerte la receta en el momento. ¿Te queda bien pasar entre semana (9 a 19 hs) o un sábado (9 a 14 hs)?",
-    "adjunto_recibido": "¡Recibido! En un momento revisamos el archivo y te confirmamos."
+    "adjunto_recibido": "¡Recibido! En un momento revisamos el archivo y te confirmamos.",
+    "envios": "Hacemos envíos a domicilio 📦. Eso sí, la toma de medidas la hacemos en el local (Av. Millán 4494) para que el lente quede perfecto. ¿Querés coordinar?",
+    "cuotas": "Aceptamos todas las tarjetas hasta 12 cuotas sin recargo, incluyendo Compra Ágil y Pago Después. 😊",
+    "test_gratis": "El test visual es 100% gratis, sin obligación de compra. ¿Querés coordinar un día para pasar?"
   },
 
   "reglas_de_control": {
@@ -125,16 +178,42 @@
       "tema": "precio_puntual",
       "intencion": "pregunta el precio de un cristal o bifocal específico",
       "respuesta": "Dar el precio exacto de ese ítem + aclarar que es solo cristal + repreguntar para avanzar."
+    },
+    {
+      "tema": "envios",
+      "intencion": "pregunta si hacen envíos o entregas a domicilio",
+      "respuesta": "Sí hacen envíos, pero la toma de medidas es en el local (ver mensajes.envios)."
+    },
+    {
+      "tema": "test_gratis",
+      "intencion": "pregunta si el examen/control de vista tiene costo",
+      "respuesta": "El test es gratis sin obligación de compra (ver mensajes.test_gratis)."
+    },
+    {
+      "tema": "cuotas",
+      "intencion": "pregunta por cuotas o formas de pago",
+      "respuesta": "Todas las tarjetas hasta 12 cuotas sin recargo (ver mensajes.cuotas)."
+    },
+    {
+      "tema": "tiempo_entrega",
+      "intencion": "pregunta cuánto tarda el lente",
+      "respuesta": "Monofocales ~3 días hábiles, multifocales ~5 días hábiles (ver tiempos_de_entrega)."
+    },
+    {
+      "tema": "convenio",
+      "intencion": "el cliente menciona un convenio o mutualista",
+      "respuesta": "Si el convenio está en convenios.activos, informar el descuento y aclarar que se coordina en el local. Si está en a_consultar o no figura, derivar a humano."
     }
   ],
 
   "limites": {
     "nunca_hacer": [
-      "Inventar precios, horarios, direcciones o condiciones no listadas en este config.",
+      "Inventar precios, horarios, direcciones, convenios o condiciones no listadas en este config.",
       "Sumar cristal + armazón para dar un total (eso va a humano).",
       "Dar consejo médico u óptico profesional (graduaciones, diagnósticos).",
       "Re-saludar a un contacto que ya tiene saludo_enviado en true.",
-      "Responder cuando el contacto está en atencion_humana dentro de la ventana de staff."
+      "Responder cuando el contacto está en atencion_humana dentro de la ventana de staff.",
+      "Informar el descuento de un convenio marcado como 'a_consultar' o pendiente: esos van a humano."
     ]
   }
 }

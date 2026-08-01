@@ -106,6 +106,14 @@ export const StateMachine = {
 
     // 5. AGENDAMIENTO / TURNOS / RESERVAS -> TRASPASO A HUMANO
     if (msg.includes("agendar") || msg.includes("agendarme") || msg.includes("agendame") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("cita") || msg.includes("reserva") || msg.includes("reservar") || msg.includes("reservás") || msg.includes("reservas")) {
+      // Si pregunta explícitamente si el test es gratis, responder gratis sin derivar
+      if (msg.includes("costo") || msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuánto sale") || msg.includes("gratis") || msg.includes("cobran")) {
+        return {
+          action: 'REPLY_TEXT',
+          reply: buildReply(config.mensajes.test_gratis),
+          patch
+        };
+      }
       return {
         action: 'HANDOFF_HUMAN',
         reply: buildHandoffReply("Para coordinar la reserva de tu turno,"),
@@ -199,8 +207,8 @@ export const StateMachine = {
       };
     }
 
-    // 13. PRECIO ESPECÍFICO: ANTIRREFLEJO
-    if (msg.includes("antirreflejo") || msg.includes("antireflejo") || msg.includes("ar ")) {
+    // 13. PRECIO ESPECÍFICO: ANTIRREFLEJO (USA PALABRA COMPLETA \bar\b PARA EVITAR SOLAPAR "ENTREGAR")
+    if (msg.includes("antirreflejo") || msg.includes("antireflejo") || /\bar\b/.test(msg)) {
       const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
       const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
 
@@ -244,41 +252,95 @@ export const StateMachine = {
       };
     }
 
-    // 16. ENVÍOS AL INTERIOR
-    if (msg.includes("artigas") || msg.includes("salto") || msg.includes("rivera") || msg.includes("maldonado") || msg.includes("rocha") || msg.includes("tacuarembo") || msg.includes("tacuarembó") || msg.includes("colonia") || msg.includes("minas") || msg.includes("durazno") || msg.includes("florida") || msg.includes("san jose") || msg.includes("san josé") || msg.includes("mercedes") || msg.includes("treinta y tres") || msg.includes("rio negro") || msg.includes("soriano") || msg.includes("cerro largo") || msg.includes("interior") || msg.includes("envio") || msg.includes("envíos") || msg.includes("despacho")) {
+    // 16. CONVENIOS Y MUTUALISTAS (V1.1: DISTINGUE ACTIVOS DE A_CONSULTAR)
+    if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico") || msg.includes("católico") || msg.includes("evangélico") || msg.includes("ferrocarril") || msg.includes("sayago") || msg.includes("racing") || msg.includes("fitlab") || msg.includes("salvaje") || msg.includes("vulcano") || msg.includes("liga")) {
+      
+      // Convenios marcados a consultar -> Handoff a Humano para confirmar sin inventar
+      if (msg.includes("sayago") || msg.includes("racing") || msg.includes("fitlab") || msg.includes("salvaje") || msg.includes("vulcano") || msg.includes("liga")) {
+        return {
+          action: 'HANDOFF_HUMAN',
+          reply: buildHandoffReply("Para confirmar el descuento específico de ese convenio/institución,"),
+          patch: { funnel: 'TRASPASO_HUMANO' }
+        };
+      }
+
+      // Convenios activos confirmados en config
+      if (msg.includes("caja bancaria") || msg.includes("cjpb")) {
+        const desc = config.convenios.activos.caja_bancaria_cjpb.descuento;
+        return { action: 'REPLY_TEXT', reply: buildReply(`Con Caja Bancaria (CJPB) tenés ${desc}. Para aplicarlo, se coordina al momento de la compra en el local.`), patch };
+      }
+      if (msg.includes("catolico") || msg.includes("católico")) {
+        const desc = config.convenios.activos.circulo_catolico.descuento;
+        return { action: 'REPLY_TEXT', reply: buildReply(`Para funcionarios del Círculo Católico contamos con ${desc}. Se presenta en el local al comprar.`), patch };
+      }
+      if (msg.includes("evangelico") || msg.includes("evangélico")) {
+        const desc = config.convenios.activos.hospital_evangelico.descuento;
+        return { action: 'REPLY_TEXT', reply: buildReply(`Para funcionarios del Hospital Evangélico contamos con ${desc}. Se aplica en el local al comprar.`), patch };
+      }
+      if (msg.includes("stiq") || msg.includes("quimica") || msg.includes("química")) {
+        const desc = config.convenios.activos.sindicato_quimica.descuento;
+        return { action: 'REPLY_TEXT', reply: buildReply(`Con el Sindicato de la Industria Química (STIQ) tenés ${desc}.`), patch };
+      }
+      if (msg.includes("bps")) {
+        const desc = config.convenios.activos.bps.descuento;
+        return { action: 'REPLY_TEXT', reply: buildReply(`Trabajamos con ${desc}`), patch };
+      }
+
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(
-          "¡Hacemos envíos a todo el país! Podés enviarnos la foto de tu receta por acá, te mostramos opciones de armazones por foto/video y te enviamos tus lentes prontos por agencia."
+          "Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Hospital Evangélico y Ferrocarril Norte. ¿A cuál pertenecés así te paso el descuento exacto?"
         ),
         patch
       };
     }
 
-    // 17. CONVENIOS
-    if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico") || msg.includes("católico") || msg.includes("evangélico")) {
+    // 17. TIEMPOS DE ENTREGA (V1.1)
+    if (msg.includes("tarda") || msg.includes("tardan") || msg.includes("cuanto demora") || msg.includes("cuánto demora") || msg.includes("tiempo de entrega") || msg.includes("demora") || msg.includes("demoras") || msg.includes("entregar")) {
+      const tMono = config.tiempos_de_entrega.monofocales_estandar;
+      const tMulti = config.tiempos_de_entrega.multifocales_progresivos;
       return {
         action: 'REPLY_TEXT',
-        reply: buildReply(
-          "Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Evangélico y clubes deportivos. ¿A qué convenio pertenecés así te paso el descuento exacto?"
-        ),
+        reply: buildReply(`Los cristales monofocales tardan ${tMono} y los multifocales/bifocales ${tMulti}.`),
         patch
       };
     }
 
-    // 18. CUOTAS / TARJETAS
-    if (msg.includes("cuota") || msg.includes("cuotas") || msg.includes("tarjeta") || msg.includes("pago") || msg.includes("credito") || msg.includes("crédito") || msg.includes("debito") || msg.includes("débito") || msg.includes("financiar")) {
+    // 18. GARANTÍAS Y ADAPTACIÓN (V1.1)
+    if (msg.includes("garantia") || msg.includes("garantía") || msg.includes("garantias") || msg.includes("garantías")) {
+      if (msg.includes("especifica") || msg.includes("específica") || msg.includes("modelo") || msg.includes("este cristal")) {
+        return {
+          action: 'HANDOFF_HUMAN',
+          reply: buildHandoffReply("Para confirmarte la garantía exacta de ese producto específico,"),
+          patch: { funnel: 'TRASPASO_HUMANO' }
+        };
+      }
       return {
         action: 'REPLY_TEXT',
-        reply: buildReply(
-          "Aceptamos todas las tarjetas de crédito hasta en 12 cuotas sin recargo, débito y efectivo. 💳",
-          "¿Querés consultar presupuesto o coordinar chequeo gratis?"
-        ),
+        reply: buildReply(`${config.garantias.adaptacion} ¿Precisás consultar por algún modelo en particular?`),
         patch
       };
     }
 
-    // 19. HORARIOS / DÍAS / APERTURA / PROBARSE EN EL LOCAL
+    // 19. ENVÍOS Y TOMA DE MEDIDAS (V1.1)
+    if (msg.includes("artigas") || msg.includes("salto") || msg.includes("rivera") || msg.includes("maldonado") || msg.includes("rocha") || msg.includes("tacuarembo") || msg.includes("tacuarembó") || msg.includes("colonia") || msg.includes("minas") || msg.includes("durazno") || msg.includes("florida") || msg.includes("san jose") || msg.includes("san josé") || msg.includes("mercedes") || msg.includes("treinta y tres") || msg.includes("rio negro") || msg.includes("soriano") || msg.includes("cerro largo") || msg.includes("interior") || msg.includes("envio") || msg.includes("envíos") || msg.includes("despacho") || msg.includes("domicilio")) {
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply(config.mensajes.envios),
+        patch
+      };
+    }
+
+    // 20. CUOTAS / TARJETAS / MEDIOS DE PAGO (V1.1)
+    if (msg.includes("cuota") || msg.includes("cuotas") || msg.includes("tarjeta") || msg.includes("pago") || msg.includes("credito") || msg.includes("crédito") || msg.includes("debito") || msg.includes("débito") || msg.includes("financiar") || msg.includes("compra agil") || msg.includes("compra ágil") || msg.includes("pago despues") || msg.includes("pago después")) {
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply(config.mensajes.cuotas),
+        patch
+      };
+    }
+
+    // 21. HORARIOS / DÍAS / APERTURA / PROBARSE EN EL LOCAL
     if (msg.includes("horario") || msg.includes("horarios") || msg.includes("abren") || msg.includes("abierto") || msg.includes("que hora") || msg.includes("qué hora") || msg.includes("hasta que hora") || msg.includes("hasta qué hora") || msg.includes("probarme") || msg.includes("probar") || msg.includes("pasar por el local") || msg.includes("ir al local") || msg.includes("pasar por ahi") || msg.includes("pasar por ahí")) {
       return {
         action: 'REPLY_TEXT',
@@ -290,7 +352,7 @@ export const StateMachine = {
       };
     }
 
-    // 20. ARMAZONES
+    // 22. ARMAZONES
     if (msg.includes("armazon") || msg.includes("armazón") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos") || msg.includes("incuyen") || msg.includes("incluyen")) {
       const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
       patch.funnel = 'PRESUPUESTADO';
@@ -304,7 +366,7 @@ export const StateMachine = {
       };
     }
 
-    // 21. PRECIOS GENERALES
+    // 23. PRECIOS GENERALES
     if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cuánto sale") || msg.includes("cuánto me saldría") || msg.includes("cristal") || msg.includes("precios") || msg.includes("cotiz")) {
       const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
       const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
@@ -322,7 +384,7 @@ export const StateMachine = {
       };
     }
 
-    // 22. AGRADECIMIENTOS
+    // 24. AGRADECIMIENTOS
     if (msg.includes("gracias") || msg.includes("dale ok") || msg.includes("buenisimo") || msg.includes("buenísimo") || msg.includes("impecable") || msg.includes("dale barbaro") || msg.includes("dale bárbaro")) {
       return {
         action: 'REPLY_TEXT',
@@ -331,7 +393,7 @@ export const StateMachine = {
       };
     }
 
-    // 23. DESPEDIDAS SECUNDARIAS
+    // 25. DESPEDIDAS SECUNDARIAS
     if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
       return {
         action: 'REPLY_TEXT',
@@ -340,7 +402,7 @@ export const StateMachine = {
       };
     }
 
-    // 24. UBICACIÓN
+    // 26. UBICACIÓN
     if (msg.includes("donde") || msg.includes("dónde") || msg.includes("ubicados") || msg.includes("ubicacion") || msg.includes("ubicación") || msg.includes("direccion") || msg.includes("dirección") || msg.includes("montevideo")) {
       return {
         action: 'REPLY_TEXT',
@@ -352,7 +414,7 @@ export const StateMachine = {
       };
     }
 
-    // 25. LENTES DE SOL
+    // 27. LENTES DE SOL
     if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
       return {
         action: 'REPLY_TEXT',
@@ -361,7 +423,7 @@ export const StateMachine = {
       };
     }
 
-    // 26. FALLBACK GENERAL CON LOG EXPLÍCITO DE CONSULTA SIN REGLA
+    // 28. FALLBACK GENERAL CON LOG EXPLÍCITO DE CONSULTA SIN REGLA
     console.log(`[DEBUG] Sin regla para: "${userMessage}" - usando fallback.`);
     patch.saludo_enviado = true;
 
