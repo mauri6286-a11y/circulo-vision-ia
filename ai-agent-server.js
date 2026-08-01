@@ -34,6 +34,25 @@ function normalizeText(txt) {
   return (txt || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 }
 
+function esHorarioLaboralUruguay() {
+  const now = new Date();
+  const options = { timeZone: 'America/Montevideo', hour12: false, weekday: 'short', hour: '2-digit' };
+  const formatter = new Intl.DateTimeFormat('es-UY', options);
+  const parts = formatter.formatToParts(now);
+  const map = {};
+  parts.forEach(p => { map[p.type] = p.value; });
+
+  const hour = parseInt(map.hour || '0', 10);
+  const dayStr = (map.weekday || "").toLowerCase();
+
+  const isSunday = dayStr.includes('dom') || dayStr.includes('sun');
+  const isSaturday = dayStr.includes('sáb') || dayStr.includes('sab') || dayStr.includes('sat');
+
+  if (isSunday) return false;
+  if (isSaturday) return hour >= 9 && hour < 14;
+  return hour >= 9 && hour < 19;
+}
+
 // CRON JOB: Revisa todos los contactos con tag atencion_humana y libera automáticamente los que tengan +24hs sin staff
 async function ejecutarCronLiberacion24hs() {
   console.log('[CRON] Ejecutando revisión periódica de liberación de tag atencion_humana (24hs)...');
@@ -219,7 +238,6 @@ async function verificarTagHumano(contactId) {
     if (isPaused) {
       await store.setState(contactId, { funnel: 'TRASPASO_HUMANO' });
     } else {
-      // PARTE 1 — CONTROL MANUAL: Si se removió el tag a mano en GHL, reactivar funnel
       const currentState = await store.getState(contactId);
       if (currentState.funnel === 'TRASPASO_HUMANO') {
         await store.setState(contactId, { funnel: 'REACTIVADO', saludo_enviado: true });
@@ -361,15 +379,19 @@ async function procesarLoteDeMensajes(contactId, messages) {
   }
 
   const isHumanActive = await verificarTagHumano(contactId);
-  if (isHumanActive) {
-    console.log(`⏸️ Mensaje ignorado por la IA porque Nico/Staff tiene la etiqueta atencion_humana en ${contactId}.`);
+  if (isHumanActive || currentState.funnel === 'TRASPASO_HUMANO') {
+    console.log(`⏸️ Mensaje ignorado por la IA porque Nico/Staff tiene el control de ${contactId}.`);
     return null;
   }
 
   // MANEJO DE ADJUNTOS / COMPROBANTES / PDF: JAMÁS SALUDA NI USA PLANTILLA DE PITCH
   if (hasAttachment || !textoCompleto) {
     console.log(`📎 Adjunto/PDF o mensaje sin texto detectado para ${contactId}. Enviando mensaje corto de recibido y pasando a humano...`);
-    const confirmReply = "¡Recibido! En un momento revisamos el archivo y te confirmamos.";
+    const isHours = esHorarioLaboralUruguay();
+    const confirmReply = isHours
+      ? "¡Recibido! Le paso tu archivo a nuestro equipo, que te va a responder en breve por acá. 😊"
+      : "¡Recibido! Le dejo tu archivo a nuestro equipo. Te responden apenas abramos en nuestro horario de atención (Lun a Vie 9 a 19 hs, Sáb 9 a 14 hs). ¡Muchas gracias!";
+
     await sendGHLMessage(contactId, confirmReply);
     await addTagToContact(contactId, "atencion_humana");
     await store.setState(contactId, {
@@ -486,5 +508,5 @@ process.on('SIGTERM', async () => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Cron 24h Liberación Automática de Tag.`);
+  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Mensajes de Derivación Contextuales por Horario.`);
 });

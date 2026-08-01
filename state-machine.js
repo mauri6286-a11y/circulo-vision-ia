@@ -9,16 +9,48 @@
       return { action: 'IGNORE_HUMAN_ACTIVE', patch: {} };
     }
 
+    const patch = {};
+
+    const buildHandoffReply = (reasonText = "") => {
+      const now = new Date();
+      const options = { timeZone: 'America/Montevideo', hour12: false, weekday: 'short', hour: '2-digit' };
+      const formatter = new Intl.DateTimeFormat('es-UY', options);
+      const parts = formatter.formatToParts(now);
+      const map = {};
+      parts.forEach(p => { map[p.type] = p.value; });
+
+      const hour = parseInt(map.hour || '0', 10);
+      const dayStr = (map.weekday || "").toLowerCase();
+
+      const isSunday = dayStr.includes('dom') || dayStr.includes('sun');
+      const isSaturday = dayStr.includes('sáb') || dayStr.includes('sab') || dayStr.includes('sat');
+
+      let inHours = false;
+      if (isSunday) {
+        inHours = false;
+      } else if (isSaturday) {
+        inHours = hour >= 9 && hour < 14;
+      } else {
+        inHours = hour >= 9 && hour < 19;
+      }
+
+      const prefix = reasonText ? `${reasonText.trim()} ` : "";
+
+      if (inHours) {
+        return `${prefix}Le paso tu consulta a nuestro equipo, que te va a responder en breve por acá. 😊 [SOLICITA_HUMANO]`.trim();
+      } else {
+        return `${prefix}Le dejo tu consulta a nuestro equipo. Te responden apenas abramos en nuestro horario de atención (Lun a Vie 9 a 19 hs, Sáb 9 a 14 hs). ¡Muchas gracias! [SOLICITA_HUMANO]`.trim();
+      }
+    };
+
     // PASO 6 — MENSAJES SIN TEXTO / ADJUNTOS / COMPROBANTES / PDF
     if (!msg || msg === "[adjunto]" || msg.includes(".pdf") || msg.includes("comprobante") || msg.includes("recibo") || msg.includes("transferencia") || msg.includes("pago realizado")) {
       return {
         action: 'HANDOFF_HUMAN',
-        reply: "¡Recibido! En un momento revisamos tu comprobante/adjunto y te confirmamos. [SOLICITA_HUMANO]",
+        reply: buildHandoffReply("¡Recibido!"),
         patch: { funnel: 'TRASPASO_HUMANO' }
       };
     }
-
-    const patch = {};
 
     const buildReply = (baseText, recetaChequeoQuestion = "") => {
       let text = baseText;
@@ -49,7 +81,7 @@
     if (msg.includes("colaborar") || msg.includes("colaboracion") || msg.includes("colaboración") || msg.includes("colaboraciones") || msg.includes("acuerdo") || msg.includes("otra optica") || msg.includes("otra óptica") || msg.includes("propuesta") || msg.includes("canje") || msg.includes("influencer") || msg.includes("publicidad")) {
       return {
         action: 'HANDOFF_HUMAN',
-        reply: "Con gusto te ayudamos. Le paso tu mensaje a Nico para que conversen directamente sobre la propuesta. Aguardame un segundito. [SOLICITA_HUMANO]",
+        reply: buildHandoffReply("Con gusto."),
         patch: { funnel: 'TRASPASO_HUMANO' }
       };
     }
@@ -58,7 +90,7 @@
     if (msg.includes("caen") || msg.includes("caen al piso") || msg.includes("se me caen") || msg.includes("ajuste") || msg.includes("patilla") || msg.includes("patillas") || msg.includes("adaptacion") || msg.includes("adaptación") || msg.includes("aflojo") || msg.includes("aflojó") || msg.includes("me aprieta") || msg.includes("me molesta") || msg.includes("veo borroso") || msg.includes("no veo bien")) {
       return {
         action: 'HANDOFF_HUMAN',
-        reply: "Con gusto te ayudamos. Le paso tu consulta a Nico en el local para que revise la adaptación y el ajuste de tus lentes. Podés pasar por Av. Millán 4494 en cualquier momento para acomodártelos sin costo. Aguardame un segundito. [SOLICITA_HUMANO]",
+        reply: buildHandoffReply("Para revisar la adaptación y el ajuste de tus lentes,"),
         patch: { funnel: 'TRASPASO_HUMANO' }
       };
     }
@@ -67,7 +99,7 @@
     if (msg.includes("llegaron") || msg.includes("listos") || msg.includes("prontos") || msg.includes("retirar") || msg.includes("mi pedido") || msg.includes("mis lentes") || msg.includes("taller") || msg.includes("buscar mi pedido")) {
       return {
         action: 'HANDOFF_HUMAN',
-        reply: "Con gusto te confirmamos. Le paso tu consulta a Nico y al equipo para que revisen el estado exacto de tu pedido y te avisen. Aguardame un segundito. [SOLICITA_HUMANO]",
+        reply: buildHandoffReply("Para confirmarte el estado exacto de tu pedido en taller,"),
         patch: { funnel: 'TRASPASO_HUMANO' }
       };
     }
@@ -76,7 +108,7 @@
     if (msg.includes("agendar") || msg.includes("agendarme") || msg.includes("agendame") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("cita") || msg.includes("reserva") || msg.includes("reservar") || msg.includes("reservás") || msg.includes("reservas")) {
       return {
         action: 'HANDOFF_HUMAN',
-        reply: "¡Con gusto! Le paso tu solicitud a Nico en el local para que verifique la agenda física y te confirme el turno. Aguardame un segundito por favor. [SOLICITA_HUMANO]",
+        reply: buildHandoffReply("Para coordinar la reserva de tu turno,"),
         patch: { funnel: 'TRASPASO_HUMANO' }
       };
     }
@@ -85,7 +117,7 @@
     if (msg.includes("fotocrom") || msg.includes("transition") || msg.includes("fotosensibl")) {
       return {
         action: 'HANDOFF_HUMAN',
-        reply: "Para cristales fotocromáticos o fotosensibles te derivo con Nico en el local para que arme el presupuesto exacto según tu receta. En un momento te contactan. [SOLICITA_HUMANO]",
+        reply: buildHandoffReply("Para darte el presupuesto exacto de cristales fotocromáticos según tu receta,"),
         patch: { funnel: 'TRASPASO_HUMANO' }
       };
     }
@@ -94,7 +126,7 @@
     if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor") || msg.includes("multifocal") || msg.includes("multifocales")) {
       return {
         action: 'HANDOFF_HUMAN',
-        reply: "Para lentes multifocales o Varilux te derivo con Nico en el local para que revise tu receta y te pase el presupuesto personalizado exacto. En un momento te contactan. [SOLICITA_HUMANO]",
+        reply: buildHandoffReply("Para lentes multifocales Varilux y cotización personalizada,"),
         patch: { funnel: 'TRASPASO_HUMANO' }
       };
     }
@@ -103,7 +135,7 @@
     if ((msg.includes("completo") || msg.includes("armado") || msg.includes("sumados") || msg.includes("ambos")) && (msg.includes("lente") || msg.includes("precio") || msg.includes("cuanto"))) {
       return {
         action: 'HANDOFF_HUMAN',
-        reply: "Para cotizarte el lente completo armado con el armazón exacto y tu receta sumados, te paso con Nico para que te arme la cotización exacta. Aguardame un segundito. [SOLICITA_HUMANO]",
+        reply: buildHandoffReply("Para cotizarte el lente completo armado con el armazón y tu receta sumados,"),
         patch: { funnel: 'TRASPASO_HUMANO' }
       };
     }
