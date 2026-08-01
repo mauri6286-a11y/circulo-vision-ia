@@ -19,7 +19,7 @@ console.log("=================================================");
 console.log("🏆 INICIANDO SUITE DE CONVERSACIONES DORADAS (FASE 4)");
 console.log("=================================================\n");
 
-// --- CONVERSACIÓN 1: SIN RECETA INSISTENTE (MULTI-TURNO) ---
+// --- CONVERSACIÓN 1: SIN RECETA INSISTENTE (4 Turnos) ---
 console.log("💬 CONVERSACIÓN 1: Sin Receta Insistente (4 Turnos)");
 let state1 = {};
 const turn1_1 = await StateMachine.processMessage('gold-1', 'cuánto un antirreflejo', state1);
@@ -37,6 +37,12 @@ assert(state1.funnel === 'CHEQUEO_REQUERIDO' && state1.preguntado_receta_chequeo
 const turn1_4 = await StateMachine.processMessage('gold-1', 'ya te dije que no tengo', state1);
 Object.assign(state1, turn1_4.patch);
 assert(turn1_4.reply.includes("disculpá la insistencia") && !turn1_4.reply.includes("¡Hola!"), '   Turno 4: No repite idéntico y empatiza');
+
+// --- CONVERSACIÓN 1B: CHEQUEO_REQUERIDO PERMITE PREGUNTAS CONTINUAS ---
+console.log("\n💬 CONVERSACIÓN 1B: CHEQUEO_REQUERIDO no silencia al bot y responde convenios");
+let state1b = { funnel: 'CHEQUEO_REQUERIDO', preguntado_receta_chequeo: true, saludo_enviado: true };
+const turn1b = await StateMachine.processMessage('gold-1b', 'soy del sindicato de la quimica, tienen descuento?', state1b);
+assert(turn1b.action === 'REPLY_TEXT' && turn1b.reply.includes("Sindicato") && turn1b.reply.includes("20%"), '   CHEQUEO_REQUERIDO responde descuento STIQ sin silenciarse');
 
 // --- CONVERSACIÓN 2: VARIANTES SIN RECETA ---
 console.log("\n💬 CONVERSACIÓN 2: Variantes Expresivas de 'Sin Receta'");
@@ -68,7 +74,6 @@ await store1.init();
 
 await store1.setState(realContactId, { saludo_enviado: true, funnel: 'PRESUPUESTADO' });
 
-// Reinicio simulado de la app / memoria instanciando nuevo store
 const store2 = new GHLState({ apiToken: token, locationId: locId, cacheTtlMs: 0 });
 await store2.init();
 const recoveredState = await store2.getState(realContactId);

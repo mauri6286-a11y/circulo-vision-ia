@@ -7,6 +7,8 @@ export const StateMachine = {
     const config = getConfig();
     const historial = options.historial || [];
 
+    // ÚNICAS CONDICIONES QUE SILENCIAN AL BOT: TRASPASO_HUMANO o ia_pausada
+    // Todos los demás estados (NUEVO_LEAD, PRESUPUESTADO, CHEQUEO_REQUERIDO, ESPERANDO_FOTO_RECETA, REACTIVADO) SON ACTIVOS.
     if (currentState.funnel === 'TRASPASO_HUMANO' || currentState.ia_pausada) {
       return { action: 'IGNORE_HUMAN_ACTIVE', patch: {} };
     }
@@ -182,6 +184,11 @@ export const StateMachine = {
         patch.saludo_enviado = true;
         replySnippets.push(`¡Hola! 😊 En ${config.negocio.nombre} (${config.negocio.direccion}) hacemos test visual 100% GRATIS.`);
       }
+    }
+
+    // Preservar estado activo del funnel en el patch si la intención actual no lo reemplazó por uno nuevo
+    if (!patch.funnel && currentState.funnel && currentState.funnel !== 'TRASPASO_HUMANO') {
+      patch.funnel = currentState.funnel;
     }
 
     if (replySnippets.length === 0) {
