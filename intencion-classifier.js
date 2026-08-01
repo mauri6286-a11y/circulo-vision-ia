@@ -6,6 +6,21 @@ export async function clasificarIntencion({ mensaje, historial = [], config = nu
 
   console.log('[DEBUG] contexto enviado a clasificador:', JSON.stringify({ mensaje, historial }));
 
+  // Detectar si el mensaje contiene sólo emojis o símbolos
+  const cleanMsgNoEmoji = (mensaje || "").replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\s]/gu, "").trim();
+  const isOnlyEmoji = cleanMsgNoEmoji.length === 0 && (mensaje || "").trim().length > 0;
+
+  if (isOnlyEmoji) {
+    console.log(`[INTENCION] ${mensaje}: Mensaje de solo emojis detectado -> "otra"`);
+    return {
+      intenciones: ["otra"],
+      entidades: { producto: null, convenio: null, tiene_receta: null },
+      requiere_humano: false,
+      razon_humano: null,
+      resumen: "Mensaje compuesto únicamente de emojis."
+    };
+  }
+
   const productosValidos = Object.keys(cfg.datos_que_el_bot_informa?.cristales_simples?.items || {})
     .concat(Object.keys(cfg.datos_que_el_bot_informa?.bifocales?.items || {}))
     .concat(['armazon']);
@@ -40,7 +55,8 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
    - Si menciona UN CONVENIO NO LISTADO O PENDIENTE (ej: "antel", "ancap", "sayago", "fitlab"), poner el slug en entidades.convenio y exige requiere_humano: true, razon_humano: "convenio_a_consultar".
 5. "requiere_humano: true": Si pregunta por fotocromáticos, multifocales/varilux, lente completo armado, reclamos, adaptaciones, turnos, o preguntas fuera de tema (wifi, mascotas).
 6. "consulta_precio": Si pregunta precio de un producto puntual (antirreflejo, blueblocker, cristal blanco, bifocal, armazón), incluir "consulta_precio" y poner el slug exacto en entidades.producto.
-7. NO inventar datos.
+7. "otra" / "saludo": Si el mensaje es solo emojis, un saludo casual suelto ("hola cómo va", "buenas"), o un comentario ambiguo no relacionado con una consulta directa de óptica (ej: "de nuevo el día del padre 🥰🥳💪?"), clasificar como "otra" o "saludo". NO inventar consulta comercial donde no la hay.
+8. NO inventar datos.
 `;
 
       const payload = {
@@ -104,7 +120,7 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
   let requiere_humano = false;
   let razon_humano = null;
 
-  // 1. Fuera de tema
+  // 1. Fuera de tema explícito
   if (lowerMsg.includes("wifi") || lowerMsg.includes("mascota") || lowerMsg.includes("perro") || lowerMsg.includes("estacionamiento")) {
     intencionesSet.add("consulta_derivar_humano");
     requiere_humano = true;
@@ -215,7 +231,7 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
   }
 
   // 16. Saludo / Ambiguo
-  if (intencionesSet.size === 0 && (lowerMsg.includes("hola") || lowerMsg.includes("necesito") || lowerMsg.includes("lentes"))) {
+  if (intencionesSet.size === 0 && (lowerMsg.includes("hola") || lowerMsg.includes("necesito") || lowerMsg.includes("lentes") || lowerMsg.includes("dia del padre"))) {
     intencionesSet.add("saludo");
   }
 

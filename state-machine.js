@@ -8,7 +8,6 @@ export const StateMachine = {
     const historial = options.historial || [];
 
     // ÚNICAS CONDICIONES QUE SILENCIAN AL BOT: TRASPASO_HUMANO o ia_pausada
-    // Todos los demás estados (NUEVO_LEAD, PRESUPUESTADO, CHEQUEO_REQUERIDO, ESPERANDO_FOTO_RECETA, REACTIVADO) SON ACTIVOS.
     if (currentState.funnel === 'TRASPASO_HUMANO' || currentState.ia_pausada) {
       return { action: 'IGNORE_HUMAN_ACTIVE', patch: {} };
     }
@@ -180,19 +179,49 @@ export const StateMachine = {
       } else if (intent === 'promo') {
         patch.preguntado_receta_chequeo = true;
         replySnippets.push(`En ${config.negocio.nombre} (${config.negocio.direccion}) contamos con test visual 100% GRATIS.`);
-      } else if (intent === 'saludo' && replySnippets.length === 0) {
-        patch.saludo_enviado = true;
-        replySnippets.push(`¡Hola! 😊 En ${config.negocio.nombre} (${config.negocio.direccion}) hacemos test visual 100% GRATIS.`);
+      } else if (intent === 'otra' || intent === 'saludo') {
+        if (!yaSaludado) {
+          patch.saludo_enviado = true;
+          replySnippets.push(`¡Hola! 😊 ¿En qué te puedo ayudar hoy?`);
+        } else {
+          const intentos = currentState.intentos_ambiguos || 0;
+          if (intentos >= 1) {
+            return {
+              action: 'HANDOFF_HUMAN',
+              reply: buildHandoffReply("Con gusto le paso tu consulta a nuestro equipo para que te asesoren en detalle,"),
+              patch: { funnel: 'TRASPASO_HUMANO' },
+              intent: intentResult
+            };
+          } else {
+            patch.intentos_ambiguos = intentos + 1;
+            replySnippets.push(`¿En qué te puedo ayudar? 😊`);
+          }
+        }
       }
     }
 
-    // Preservar estado activo del funnel en el patch si la intención actual no lo reemplazó por uno nuevo
     if (!patch.funnel && currentState.funnel && currentState.funnel !== 'TRASPASO_HUMANO') {
       patch.funnel = currentState.funnel;
     }
 
     if (replySnippets.length === 0) {
-      replySnippets.push("Con gusto te asesoramos. Podés enviarnos la foto de tu receta o contarme qué cristal o armazón buscás.");
+      if (!yaSaludado) {
+        patch.saludo_enviado = true;
+        replySnippets.push(`¡Hola! 😊 ¿En qué te puedo ayudar hoy?`);
+      } else {
+        const intentos = currentState.intentos_ambiguos || 0;
+        if (intentos >= 1) {
+          return {
+            action: 'HANDOFF_HUMAN',
+            reply: buildHandoffReply("Con gusto le paso tu consulta a nuestro equipo para que te asesoren en detalle,"),
+            patch: { funnel: 'TRASPASO_HUMANO' },
+            intent: intentResult
+          };
+        } else {
+          patch.intentos_ambiguos = intentos + 1;
+          replySnippets.push(`¿En qué te puedo ayudar? 😊`);
+        }
+      }
     }
 
     const combinedBody = replySnippets.join(" ");
