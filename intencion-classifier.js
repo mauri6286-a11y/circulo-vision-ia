@@ -34,13 +34,12 @@ Tu única tarea es analizar el mensaje del cliente y el historial de la conversa
 REGLAS DE CLASIFICACIÓN RIGUROSAS:
 1. "sin_receta": Si el cliente indica que no tiene receta (ej: "no tengo receta", "la perdí", "la dejé en casa", "no la traje", "sin receta"), clasificar intencion: "sin_receta", tiene_receta: false, requiere_humano: false.
 2. "tengo_receta": Si el cliente indica que si tiene receta (ej: "tengo receta", "tengo la receta médica", "con receta"), clasificar intencion: "tengo_receta", tiene_receta: true, requiere_humano: false.
-3. "promo": Si ingresa por una promoción o anuncio (ej: "promo", "interesa la promo", "source url", "fb.me"), clasificar intencion: "promo", requiere_humano: false.
-4. "consulta_convenio":
+3. "consulta_convenio":
    - Si menciona un convenio activo (${conveniosActivos.join(', ')}), poner el slug exacto en entidades.convenio y requiere_humano: false.
-   - Si menciona un convenio a consultar (${conveniosAConsultar.join(', ')}) o mutualista/sindicato vago/desconocido (ej: " mutualista ", "fitlab", "sayago", "crossfit"), poner el slug en entidades.convenio y requiere_humano: true, razon_humano: "convenio_a_consultar".
-5. "requiere_humano: true": Si pregunta por fotocromáticos/transitions, multifocales/varilux, cotización de lente completo armado (cristal + armazón sumados), reclamos, arreglos/patillas que se caen, agendamiento de turnos específicos, garantía de producto específico, o convenios a consultar.
-6. "consulta_precio": Si pregunta precio de un producto puntual (ej: antirreflejo, blueblocker, cristal blanco, bifocal, armazón), clasificar intencion: "consulta_precio" y poner el slug exacto en entidades.producto.
-7. NO inventar datos. Tu único trabajo es clasificar en el JSON estructurado.
+   - Si menciona UN CONVENIO NO LISTADO O PENDIENTE (ej: "antel", "ancap", "ute", "sayago", "fitlab", "mutualista"), poner el slug en entidades.convenio y exige SIEMPRE requiere_humano: true, razon_humano: "convenio_a_consultar". ¡NUNCA inventar un descuento no confirmado!
+4. "requiere_humano: true": Si pregunta por fotocromáticos/transitions, multifocales/varilux, cotización de lente completo armado (cristal + armazón sumados), reclamos, arreglos/patillas que se caen, agendamiento de turnos específicos, garantía de producto específico, preguntas fuera de tema (wifi, mascotas, estacionamiento), o convenios a consultar. Poner requiere_humano: true.
+5. "consulta_precio": Si pregunta precio de un producto puntual (ej: antirreflejo, blueblocker, cristal blanco, bifocal, armazón), clasificar intencion: "consulta_precio" y poner el slug exacto en entidades.producto.
+6. NO inventar datos. Tu único trabajo es clasificar en el JSON estructurado.
 `;
 
       const payload = {
@@ -83,8 +82,22 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
     console.log('[DEBUG] GEMINI_API_KEY no detectada. Usando motor semántico estructural local.');
   }
 
-  // Normalizar acentos
-  const lowerMsg = (mensaje || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // Normalizar acentos y typos frecuentes (kuanto -> cuanto, kristal -> cristal)
+  let lowerMsg = (mensaje || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  lowerMsg = lowerMsg.replace(/\bkuanto\b/g, "cuanto").replace(/\bkristal\b/g, "cristal").replace(/\barrefl/g, "antirrefle");
+
+  // Fuera de tema (wifi, mascotas, perros, estacionamiento) -> Deriva a humano
+  if (lowerMsg.includes("wifi") || lowerMsg.includes("mascota") || lowerMsg.includes("perro") || lowerMsg.includes("estacionamiento")) {
+    const res = {
+      intencion: "consulta_derivar_humano",
+      entidades: { producto: null, convenio: null, tiene_receta: null },
+      requiere_humano: true,
+      razon_humano: "otro",
+      resumen: "Pregunta fuera del alcance del bot (requiere respuesta de un asesor)."
+    };
+    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
+    return res;
+  }
 
   // Entrada por Promo / Ad
   if (lowerMsg.includes("promo") || lowerMsg.includes("source url") || lowerMsg.includes("headline") || lowerMsg.includes("fb.me") || lowerMsg.includes("instagram")) {
@@ -139,35 +152,33 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
   }
 
   // Convenios
-  if (lowerMsg.includes("convenio") || lowerMsg.includes("descuento") || lowerMsg.includes("caja bancaria") || lowerMsg.includes("cjpb") || lowerMsg.includes("quimica") || lowerMsg.includes("ferrocarril") || lowerMsg.includes("sayago") || lowerMsg.includes("fitlab") || lowerMsg.includes("racing") || lowerMsg.includes("mutualista") || lowerMsg.includes("catolico") || lowerMsg.includes("evangelico") || lowerMsg.includes("bps")) {
-    if (lowerMsg.includes("sayago") || lowerMsg.includes("fitlab") || lowerMsg.includes("racing") || lowerMsg.includes("mutualista") || lowerMsg.includes("liga")) {
+  if (lowerMsg.includes("convenio") || lowerMsg.includes("descuento") || lowerMsg.includes("caja bancaria") || lowerMsg.includes("cjpb") || lowerMsg.includes("quimica") || lowerMsg.includes("ferrocarril") || lowerMsg.includes("sayago") || lowerMsg.includes("fitlab") || lowerMsg.includes("racing") || lowerMsg.includes("mutualista") || lowerMsg.includes("catolico") || lowerMsg.includes("evangelico") || lowerMsg.includes("bps") || lowerMsg.includes("antel") || lowerMsg.includes("ancap") || lowerMsg.includes("ute")) {
+    const convMatches = Object.keys(cfg.convenios?.activos || {}).filter(k => lowerMsg.includes(k.replace(/_/g, " ")) || (k === "sindicato_quimica" && lowerMsg.includes("quimica")) || (k === "caja_bancaria_cjpb" && (lowerMsg.includes("caja bancaria") || lowerMsg.includes("cjpb"))));
+
+    if (convMatches.length > 0 && !lowerMsg.includes("antel") && !lowerMsg.includes("sayago") && !lowerMsg.includes("fitlab")) {
+      const convSlug = convMatches[0];
       const res = {
         intencion: "consulta_convenio",
-        entidades: { producto: null, convenio: "mutualistas_sindicatos", tiene_receta: null },
+        entidades: { producto: null, convenio: convSlug, tiene_receta: null },
+        requiere_humano: false,
+        razon_humano: null,
+        resumen: `Consulta sobre convenio ${convSlug}.`
+      };
+      console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
+      return res;
+    } else {
+      // Convenios no confirmados / pendientes (ANTEL, Sayago, etc.) -> TRASPASO A HUMANO
+      const convSlug = lowerMsg.includes("antel") ? "antel" : "convenio_desconocido";
+      const res = {
+        intencion: "consulta_convenio",
+        entidades: { producto: null, convenio: convSlug, tiene_receta: null },
         requiere_humano: true,
         razon_humano: "convenio_a_consultar",
-        resumen: "Consulta sobre convenio a consultar/pendiente."
+        resumen: `Consulta sobre convenio a consultar (${convSlug}).`
       };
       console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
       return res;
     }
-
-    let convSlug = "caja_bancaria_cjpb";
-    if (lowerMsg.includes("quimica") || lowerMsg.includes("stiq")) convSlug = "sindicato_quimica";
-    else if (lowerMsg.includes("ferrocarril")) convSlug = "ferrocarril_norte";
-    else if (lowerMsg.includes("catolico")) convSlug = "circulo_catolico";
-    else if (lowerMsg.includes("evangelico")) convSlug = "hospital_evangelico";
-    else if (lowerMsg.includes("bps")) convSlug = "bps";
-
-    const res = {
-      intencion: "consulta_convenio",
-      entidades: { producto: null, convenio: convSlug, tiene_receta: null },
-      requiere_humano: false,
-      razon_humano: null,
-      resumen: `Consulta sobre convenio ${convSlug}.`
-    };
-    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
-    return res;
   }
 
   // Derivaciones requeridas (fotocromáticos, varilux, lente completo, adaptaciones, turnos)
@@ -253,8 +264,8 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
     return res;
   }
 
-  // Test gratis
-  if (lowerMsg.includes("examen") || lowerMsg.includes("gratis") || lowerMsg.includes("test")) {
+  // Test gratis / Chequeo
+  if (lowerMsg.includes("examen") || lowerMsg.includes("gratis") || lowerMsg.includes("test") || lowerMsg.includes("chequeo")) {
     const res = {
       intencion: "test_gratis",
       entidades: { producto: null, convenio: null, tiene_receta: null },
@@ -319,6 +330,19 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
       requiere_humano: false,
       razon_humano: null,
       resumen: "Consulta de horarios y dirección."
+    };
+    console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
+    return res;
+  }
+
+  // Mensaje ambiguo general ("hola necesito lentes") -> saludo / consulta general
+  if (lowerMsg.includes("necesito") || lowerMsg.includes("busco") || lowerMsg.includes("lentes")) {
+    const res = {
+      intencion: "saludo",
+      entidades: { producto: null, convenio: null, tiene_receta: null },
+      requiere_humano: false,
+      razon_humano: null,
+      resumen: "Consulta general de lentes (ambigua)."
     };
     console.log(`[INTENCION] ${mensaje}:`, JSON.stringify(res));
     return res;

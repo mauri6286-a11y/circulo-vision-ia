@@ -103,6 +103,9 @@ export const StateMachine = {
       };
     }
 
+    const lowerMsg = (userMessage || "").toLowerCase();
+    const isCompoundEnvios = lowerMsg.includes("envio") || lowerMsg.includes("envios");
+
     // 4. EVALUACIÓN DETERMINISTA SOBRE LA INTENCIÓN Y ENTIDADES CLASIFICADAS POR GEMINI
 
     // A. SIN RECETA (tiene_receta === false o intencion === 'sin_receta')
@@ -164,12 +167,13 @@ export const StateMachine = {
     if (intentResult.intencion === 'consulta_precio') {
       const prodSlug = intentResult.entidades?.producto;
       const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
+      const enviosNote = isCompoundEnvios ? " Además, hacemos envíos a domicilio en todo el país (la toma de medidas se realiza en el local)." : "";
 
       if (prodSlug === 'antirreflejo') {
         const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
         return {
           action: 'REPLY_TEXT',
-          reply: buildReply(`El cristal con antirreflejo tiene un costo de $${pAr.toLocaleString()} (solo cristal, el armazón va aparte desde $${pArm.toLocaleString()}).`, "¿Es para cerca, lejos o bifocal así te confirmamos exacto?"),
+          reply: buildReply(`El cristal con antirreflejo tiene un costo de $${pAr.toLocaleString()} (solo cristal, el armazón va aparte desde $${pArm.toLocaleString()}).${enviosNote}`, "¿Es para cerca, lejos o bifocal así te confirmamos exacto?"),
           patch,
           intent: intentResult
         };
@@ -178,7 +182,7 @@ export const StateMachine = {
         const pBlue = config.datos_que_el_bot_informa.cristales_simples.items.blueblocker.precio;
         return {
           action: 'REPLY_TEXT',
-          reply: buildReply(`El cristal con filtro Blueblocker (luz azul para pantallas) cuesta $${pBlue.toLocaleString()} (solo cristal, armazones desde $${pArm.toLocaleString()}).`, "¿Tenés receta médica o precisás coordinar un chequeo gratis?"),
+          reply: buildReply(`El cristal con filtro Blueblocker (luz azul para pantallas) cuesta $${pBlue.toLocaleString()} (solo cristal, armazones desde $${pArm.toLocaleString()}).${enviosNote}`, "¿Tenés receta médica o precisás coordinar un chequeo gratis?"),
           patch,
           intent: intentResult
         };
@@ -187,7 +191,7 @@ export const StateMachine = {
         const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
         return {
           action: 'REPLY_TEXT',
-          reply: buildReply(`El cristal blanco estándar tiene un costo de $${pBlanco.toLocaleString()} (solo cristal, armazones aparte desde $${pArm.toLocaleString()}).`, "¿Querés consultar presupuesto con tu receta o coordinar chequeo gratis?"),
+          reply: buildReply(`El cristal blanco estándar tiene un costo de $${pBlanco.toLocaleString()} (solo cristal, armazones aparte desde $${pArm.toLocaleString()}).${enviosNote}`, "¿Querés consultar presupuesto con tu receta o coordinar chequeo gratis?"),
           patch,
           intent: intentResult
         };
@@ -196,7 +200,7 @@ export const StateMachine = {
         patch.funnel = 'PRESUPUESTADO';
         return {
           action: 'REPLY_TEXT',
-          reply: buildReply(`Contamos con variedad de armazones desde $${pArm.toLocaleString()} (los cristales van aparte según la receta).`, "¿Buscás armazones de hombre, dama, niños o querés probarte en el local?"),
+          reply: buildReply(`Contamos con variedad de armazones desde $${pArm.toLocaleString()} (los cristales van aparte según la receta).${enviosNote}`, "¿Buscás armazones de hombre, dama, niños o querés probarte en el local?"),
           patch,
           intent: intentResult
         };
@@ -209,7 +213,7 @@ export const StateMachine = {
 
         return {
           action: 'REPLY_TEXT',
-          reply: buildReply(`En cristales bifocales contamos con opciones estándar desde $${pSinAr.toLocaleString()} ($${pConAr.toLocaleString()} con antirreflejo) y la línea Bifocal Smart de lumen invisible desde $${pSmartSinAr.toLocaleString()} ($${pSmartConAr.toLocaleString()} con antirreflejo). Precios solo del cristal (armazones aparte desde $${pArm.toLocaleString()}).`),
+          reply: buildReply(`En cristales bifocales contamos con opciones estándar desde $${pSinAr.toLocaleString()} ($${pConAr.toLocaleString()} con antirreflejo) y la línea Bifocal Smart de lumen invisible desde $${pSmartSinAr.toLocaleString()} ($${pSmartConAr.toLocaleString()} con antirreflejo). Precios solo del cristal (armazones aparte desde $${pArm.toLocaleString()}).${enviosNote}`),
           patch,
           intent: intentResult
         };
@@ -221,7 +225,7 @@ export const StateMachine = {
       patch.funnel = 'PRESUPUESTADO';
       return {
         action: 'REPLY_TEXT',
-        reply: buildReply(`El precio depende del cristal que necesites: tenemos cristales desde $${pBlanco.toLocaleString()} (Blanco), $${pAr.toLocaleString()} (Antirreflejo) y $${pBlue.toLocaleString()} (Blueblocker). Los armazones van aparte desde $${pArm.toLocaleString()}.`),
+        reply: buildReply(`El precio depende del cristal que necesites: tenemos cristales desde $${pBlanco.toLocaleString()} (Blanco), $${pAr.toLocaleString()} (Antirreflejo) y $${pBlue.toLocaleString()} (Blueblocker). Los armazones van aparte desde $${pArm.toLocaleString()}.${enviosNote}`),
         patch,
         intent: intentResult
       };
