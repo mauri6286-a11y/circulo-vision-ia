@@ -423,8 +423,11 @@ async function procesarLoteDeMensajes(contactId, messages) {
 
   await ensureOpportunityAndAssignToNico(contactId, contactName);
 
-  // Evaluar máquina de estados con el estado actual traído de GHL
-  const stateResult = StateMachine.processMessage(contactId, textoCompleto, currentState);
+  // Evaluar máquina de estados pasando el historial completo traído de GHL API a la Capa de Intención
+  const stateResult = await StateMachine.processMessage(contactId, textoCompleto, currentState, {
+    historial: ghlAudit.history || []
+  });
+
   console.log(`[DEBUG] Resultado de StateMachine para ${contactId}:`, JSON.stringify(stateResult));
 
   if (stateResult.action === 'IGNORE_HUMAN_ACTIVE') {
@@ -526,5 +529,5 @@ process.on('SIGTERM', async () => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   const loadedCfg = getConfig();
-  console.log(`🤖 Agente IA Omnicanal [${loadedCfg._meta?.cliente || "Desconocido"}] listo en puerto ${PORT} con Configuración Externa.`);
+  console.log(`🤖 Agente IA Omnicanal [${loadedCfg._meta?.cliente || "Desconocido"}] listo en puerto ${PORT} con Capa de Intención Gemini.`);
 });

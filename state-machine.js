@@ -1,11 +1,10 @@
 ﻿import { getConfig } from './config-loader.js';
+import { clasificarIntencion } from './intencion-classifier.js';
 
 export const StateMachine = {
-  processMessage(contactId, userMessage, currentState = {}) {
+  async processMessage(contactId, userMessage, currentState = {}, options = {}) {
     const config = getConfig();
-    const msg = userMessage ? userMessage.toLowerCase().trim() : "";
-    const yaSaludado = Boolean(currentState.saludo_enviado);
-    const yaPreguntoReceta = Boolean(currentState.preguntado_receta_chequeo);
+    const historial = options.historial || [];
 
     // 1. SI IA YA ESTÁ EN TRASPASO O PAUSADA
     if (currentState.funnel === 'TRASPASO_HUMANO' || currentState.ia_pausada) {
@@ -13,11 +12,13 @@ export const StateMachine = {
     }
 
     const patch = {};
+    const yaSaludado = Boolean(currentState.saludo_enviado);
+    const yaPreguntoReceta = Boolean(currentState.preguntado_receta_chequeo);
 
     const buildHandoffReply = (reasonText = "") => {
       const now = new Date();
-      const options = { timeZone: config.negocio.zona_horaria || 'America/Montevideo', hour12: false, weekday: 'short', hour: '2-digit' };
-      const formatter = new Intl.DateTimeFormat('es-UY', options);
+      const opts = { timeZone: config.negocio.zona_horaria || 'America/Montevideo', hour12: false, weekday: 'short', hour: '2-digit' };
+      const formatter = new Intl.DateTimeFormat('es-UY', opts);
       const parts = formatter.formatToParts(now);
       const map = {};
       parts.forEach(p => { map[p.type] = p.value; });
@@ -42,15 +43,6 @@ export const StateMachine = {
 
       return `${prefix}${handoffText} [SOLICITA_HUMANO]`.trim();
     };
-
-    // PASO 6 — MENSAJES SIN TEXTO / ADJUNTOS / COMPROBANTES / PDF
-    if (!msg || msg === "[adjunto]" || msg.includes(".pdf") || msg.includes("comprobante") || msg.includes("recibo") || msg.includes("transferencia") || msg.includes("pago realizado")) {
-      return {
-        action: 'HANDOFF_HUMAN',
-        reply: `${config.mensajes.adjunto_recibido} [SOLICITA_HUMANO]`,
-        patch: { funnel: 'TRASPASO_HUMANO' }
-      };
-    }
 
     const buildReply = (baseText, recetaChequeoQuestion = "") => {
       let text = baseText;
@@ -77,369 +69,287 @@ export const StateMachine = {
       return text.trim();
     };
 
-    // 2. COLABORACIONES / ACUERDOS / PROPUESTAS / INFLUENCERS / B2B -> TRASPASO A HUMANO
-    if (msg.includes("colaborar") || msg.includes("colaboracion") || msg.includes("colaboración") || msg.includes("colaboraciones") || msg.includes("acuerdo") || msg.includes("otra optica") || msg.includes("otra óptica") || msg.includes("propuesta") || msg.includes("canje") || msg.includes("influencer") || msg.includes("publicidad")) {
-      return {
-        action: 'HANDOFF_HUMAN',
-        reply: buildHandoffReply("Con gusto."),
-        patch: { funnel: 'TRASPASO_HUMANO' }
-      };
-    }
+    // 2. LLAMADA A LA CAPA DE INTENCIÓN DE GEMINI (O REUTILIZAR INTENT SI FUE PREPROCESADO)
+    const intentResult = options.intentJson || await clasificarIntencion({
+      mensaje: userMessage,
+      historial: historial,
+      config: config
+    });
 
-    // 3. PROBLEMAS DE ADAPTACIÓN / AJUSTE / LENTES QUE SE CAEN -> TRASPASO A HUMANO
-    if (msg.includes("caen") || msg.includes("caen al piso") || msg.includes("se me caen") || msg.includes("ajuste") || msg.includes("patilla") || msg.includes("patillas") || msg.includes("adaptacion") || msg.includes("adaptación") || msg.includes("aflojo") || msg.includes("aflojó") || msg.includes("me aprieta") || msg.includes("me molesta") || msg.includes("veo borroso") || msg.includes("no veo bien")) {
-      return {
-        action: 'HANDOFF_HUMAN',
-        reply: buildHandoffReply("Para revisar la adaptación y el ajuste de tus lentes,"),
-        patch: { funnel: 'TRASPASO_HUMANO' }
-      };
-    }
-
-    // 4. RETIRO / ESTADO DE LENTES DE TALLER -> TRASPASO A HUMANO
-    if (msg.includes("llegaron") || msg.includes("listos") || msg.includes("prontos") || msg.includes("retirar") || msg.includes("mi pedido") || msg.includes("mis lentes") || msg.includes("taller") || msg.includes("buscar mi pedido")) {
-      return {
-        action: 'HANDOFF_HUMAN',
-        reply: buildHandoffReply("Para confirmarte el estado exacto de tu pedido en taller,"),
-        patch: { funnel: 'TRASPASO_HUMANO' }
-      };
-    }
-
-    // 5. AGENDAMIENTO / TURNOS / RESERVAS -> TRASPASO A HUMANO
-    if (msg.includes("agendar") || msg.includes("agendarme") || msg.includes("agendame") || msg.includes("turno") || msg.includes("test") || msg.includes("examen") || msg.includes("revisio") || msg.includes("chequeo") || msg.includes("cita") || msg.includes("reserva") || msg.includes("reservar") || msg.includes("reservás") || msg.includes("reservas")) {
-      // Si pregunta explícitamente si el test es gratis, responder gratis sin derivar
-      if (msg.includes("costo") || msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuánto sale") || msg.includes("gratis") || msg.includes("cobran")) {
-        return {
-          action: 'REPLY_TEXT',
-          reply: buildReply(config.mensajes.test_gratis),
-          patch
-        };
+    // 3. SI GEMINI DETERMINÓ QUE REQUIERE HUMANO -> TRASPASO DIRECTO
+    if (intentResult.requiere_humano) {
+      let reasonMsg = "";
+      if (intentResult.razon_humano === "fotocromaticos") {
+        reasonMsg = "Para darte el presupuesto exacto de cristales fotocromáticos según tu receta,";
+      } else if (intentResult.razon_humano === "varilux") {
+        reasonMsg = "Para lentes multifocales Varilux y cotización personalizada,";
+      } else if (intentResult.razon_humano === "lente_completo") {
+        reasonMsg = "Para cotizarte el lente completo armado con el armazón y tu receta sumados,";
+      } else if (intentResult.razon_humano === "convenio_a_consultar") {
+        reasonMsg = "Para confirmarte el descuento específico de ese convenio/institución,";
+      } else if (intentResult.razon_humano === "ajustes_adaptacion") {
+        reasonMsg = "Para revisar la adaptación y el ajuste de tus lentes,";
+      } else if (intentResult.razon_humano === "turnos") {
+        reasonMsg = "Para coordinar la reserva de tu turno,";
+      } else if (intentResult.razon_humano === "garantia_producto_especifico") {
+        reasonMsg = "Para confirmarte la garantía exacta de ese producto específico,";
       }
+
       return {
         action: 'HANDOFF_HUMAN',
-        reply: buildHandoffReply("Para coordinar la reserva de tu turno,"),
-        patch: { funnel: 'TRASPASO_HUMANO' }
+        reply: buildHandoffReply(reasonMsg),
+        patch: { funnel: 'TRASPASO_HUMANO' },
+        intent: intentResult
       };
     }
 
-    // 6. FOTOCROMÁTICOS / TRANSITIONS -> TRASPASO A HUMANO
-    if (msg.includes("fotocrom") || msg.includes("transition") || msg.includes("fotosensibl")) {
-      return {
-        action: 'HANDOFF_HUMAN',
-        reply: buildHandoffReply("Para darte el presupuesto exacto de cristales fotocromáticos según tu receta,"),
-        patch: { funnel: 'TRASPASO_HUMANO' }
-      };
-    }
+    // 4. EVALUACIÓN DETERMINISTA SOBRE LA INTENCIÓN Y ENTIDADES CLASIFICADAS POR GEMINI
 
-    // 7. VARILUX / MULTIFOCALES DIGITALES -> TRASPASO A HUMANO
-    if (msg.includes("varilux") || msg.includes("physio") || msg.includes("comfort") || msg.includes("zeiss") || msg.includes("rodenstock") || msg.includes("essilor") || msg.includes("multifocal") || msg.includes("multifocales")) {
-      return {
-        action: 'HANDOFF_HUMAN',
-        reply: buildHandoffReply("Para lentes multifocales Varilux y cotización personalizada,"),
-        patch: { funnel: 'TRASPASO_HUMANO' }
-      };
-    }
-
-    // 8. COTIZACIÓN DEL LENTE COMPLETO ARMADO / COMBO -> TRASPASO A HUMANO
-    if ((msg.includes("completo") || msg.includes("armado") || msg.includes("sumados") || msg.includes("ambos")) && (msg.includes("lente") || msg.includes("precio") || msg.includes("cuanto"))) {
-      return {
-        action: 'HANDOFF_HUMAN',
-        reply: buildHandoffReply("Para cotizarte el lente completo armado con el armazón y tu receta sumados,"),
-        patch: { funnel: 'TRASPASO_HUMANO' }
-      };
-    }
-
-    // 9. CLIENTE AFIRMA NO TENER RECETA / REPETICIÓN "YA TE DIJE QUE NO TENGO"
-    if (msg.includes("no tengo receta") || msg.includes("no la tengo") || msg.includes("sin receta") || msg.includes("ya te dije") || msg.includes("ya dije") || msg.includes("aun no") || msg.includes("aún no") || msg.includes("todavia no") || msg.includes("todavía no") || (msg.includes("no tengo") && !msg.includes("receta médica"))) {
+    // A. SIN RECETA (tiene_receta === false o intencion === 'sin_receta')
+    if (intentResult.intencion === 'sin_receta' || intentResult.entidades?.tiene_receta === false) {
       patch.preguntado_receta_chequeo = true;
       patch.funnel = 'CHEQUEO_REQUERIDO';
 
-      if (yaPreguntoReceta || msg.includes("ya te dije") || msg.includes("ya dije")) {
+      if (yaPreguntoReceta) {
         return {
           action: 'REPLY_TEXT',
           reply: buildReply(`¡Entendido, disculpá la insistencia! ${config.mensajes.sin_receta}`),
-          patch
+          patch,
+          intent: intentResult
         };
       } else {
         return {
           action: 'REPLY_TEXT',
           reply: buildReply(`¡Sin ningún problema! ${config.mensajes.sin_receta}`),
-          patch
+          patch,
+          intent: intentResult
         };
       }
     }
 
-    // 10. TENGO RECETA (DEBE EXCLUIR EXPRESIONES NEGATIVAS COMO "NO TENGO RECETA")
-    if ((msg.includes("tengo receta") || msg.includes("con receta") || msg.includes("tengo la receta") || msg.includes("lentes de receta") || msg.includes("lentes de reseta")) && !msg.includes("no tengo") && !msg.includes("no la tengo") && !msg.includes("ya te dije")) {
+    // A2. TENGO RECETA (tiene_receta === true o intencion === 'tengo_receta')
+    if (intentResult.intencion === 'tengo_receta' || intentResult.entidades?.tiene_receta === true) {
       patch.funnel = 'ESPERANDO_FOTO_RECETA';
       patch.preguntado_receta_chequeo = true;
       return {
         action: 'REPLY_TEXT',
         reply: buildReply("¡Bárbaro! Podés mandarme una foto de tu receta por acá para cotizarte los cristales exactos, o si preferís coordinamos un chequeo gratis. ¿Qué te queda mejor?"),
-        patch
+        patch,
+        intent: intentResult
       };
     }
 
-    // 11. ENTRADA POR ANUNCIOS / PROMOS
-    if (msg.includes("source url") || msg.includes("headline") || msg.includes("fb.me") || msg.includes("instagram.com/p/") || msg.includes("promo")) {
-      patch.preguntado_receta_chequeo = true;
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(`Veo que nos escribes por nuestra promo activa. En ${config.negocio.nombre} (${config.negocio.direccion}) contamos con test visual 100% GRATIS.`, "¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"),
-        patch
-      };
-    }
-
-    // 12. BIFOCALES (PRECIOS DESDE CONFIG)
-    if (msg.includes("bifocal") || msg.includes("bifocales")) {
-      const pSinAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_sin_ar.precio;
-      const pConAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_con_ar.precio;
-      const pSmartSinAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_smart_sin_ar.precio;
-      const pSmartConAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_smart_con_ar.precio;
-      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
-
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(
-          `En cristales bifocales contamos con opciones estándar desde $${pSinAr.toLocaleString()} ($${pConAr.toLocaleString()} con antirreflejo) y la línea Bifocal Smart de lumen invisible desde $${pSmartSinAr.toLocaleString()} ($${pSmartConAr.toLocaleString()} con antirreflejo). Precios solo del cristal (armazones aparte desde $${pArm.toLocaleString()}).`,
-          "¿Tenés la foto de tu receta a mano para asesorarte mejor?"
-        ),
-        patch
-      };
-    }
-
-    // 13. PRECIO ESPECÍFICO: ANTIRREFLEJO (USA PALABRA COMPLETA \bar\b PARA EVITAR SOLAPAR "ENTREGAR")
-    if (msg.includes("antirreflejo") || msg.includes("antireflejo") || /\bar\b/.test(msg)) {
-      const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
-      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
-
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(
-          `El cristal con antirreflejo tiene un costo de $${pAr.toLocaleString()} (solo cristal, el armazón va aparte desde $${pArm.toLocaleString()}).`,
-          "¿Es para cerca, lejos o bifocal así te confirmamos exacto?"
-        ),
-        patch
-      };
-    }
-
-    // 14. PRECIO ESPECÍFICO: BLUEBLOCKER / LUZ AZUL
-    if (msg.includes("blueblocker") || msg.includes("blue blocker") || msg.includes("luz azul") || msg.includes("pantalla") || msg.includes("computadora")) {
-      const pBlue = config.datos_que_el_bot_informa.cristales_simples.items.blueblocker.precio;
-      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
-
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(
-          `El cristal con filtro Blueblocker (luz azul para pantallas) cuesta $${pBlue.toLocaleString()} (solo cristal, armazones desde $${pArm.toLocaleString()}).`,
-          "¿Tenés receta médica o precisás coordinar un chequeo gratis?"
-        ),
-        patch
-      };
-    }
-
-    // 15. PRECIO ESPECÍFICO: CRISTAL BLANCO / COMÚN
-    if (msg.includes("blanco") || msg.includes("cristal comun") || msg.includes("cristal común") || msg.includes("cristal simple") || msg.includes("mas economico") || msg.includes("más económico")) {
-      const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
-      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
-
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(
-          `El cristal blanco estándar tiene un costo de $${pBlanco.toLocaleString()} (solo cristal, armazones aparte desde $${pArm.toLocaleString()}).`,
-          "¿Querés consultar presupuesto con tu receta o coordinar chequeo gratis?"
-        ),
-        patch
-      };
-    }
-
-    // 16. CONVENIOS Y MUTUALISTAS (V1.1: DISTINGUE ACTIVOS DE A_CONSULTAR)
-    if (msg.includes("convenio") || msg.includes("descuento") || msg.includes("caja bancaria") || msg.includes("bps") || msg.includes("stiq") || msg.includes("sindicato") || msg.includes("catolico") || msg.includes("evangelico") || msg.includes("católico") || msg.includes("evangélico") || msg.includes("ferrocarril") || msg.includes("sayago") || msg.includes("racing") || msg.includes("fitlab") || msg.includes("salvaje") || msg.includes("vulcano") || msg.includes("liga")) {
-      
-      // Convenios marcados a consultar -> Handoff a Humano para confirmar sin inventar
-      if (msg.includes("sayago") || msg.includes("racing") || msg.includes("fitlab") || msg.includes("salvaje") || msg.includes("vulcano") || msg.includes("liga")) {
+    // B. CONSULTA CONVENIO
+    if (intentResult.intencion === 'consulta_convenio') {
+      const convSlug = intentResult.entidades?.convenio;
+      if (convSlug && config.convenios?.activos?.[convSlug]) {
+        const item = config.convenios.activos[convSlug];
         return {
-          action: 'HANDOFF_HUMAN',
-          reply: buildHandoffReply("Para confirmar el descuento específico de ese convenio/institución,"),
-          patch: { funnel: 'TRASPASO_HUMANO' }
+          action: 'REPLY_TEXT',
+          reply: buildReply(`Con ${item.nombre} tenés ${item.descuento}. Para aplicarlo, se coordina al momento de la compra en el local.`),
+          patch,
+          intent: intentResult
+        };
+      } else {
+        return {
+          action: 'REPLY_TEXT',
+          reply: buildReply("Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Hospital Evangélico y Ferrocarril Norte. ¿A cuál pertenecés así te paso el descuento exacto?"),
+          patch,
+          intent: intentResult
+        };
+      }
+    }
+
+    // C. CONSULTA PRECIO
+    if (intentResult.intencion === 'consulta_precio') {
+      const prodSlug = intentResult.entidades?.producto;
+      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
+
+      if (prodSlug === 'antirreflejo') {
+        const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
+        return {
+          action: 'REPLY_TEXT',
+          reply: buildReply(`El cristal con antirreflejo tiene un costo de $${pAr.toLocaleString()} (solo cristal, el armazón va aparte desde $${pArm.toLocaleString()}).`, "¿Es para cerca, lejos o bifocal así te confirmamos exacto?"),
+          patch,
+          intent: intentResult
+        };
+      }
+      if (prodSlug === 'blueblocker') {
+        const pBlue = config.datos_que_el_bot_informa.cristales_simples.items.blueblocker.precio;
+        return {
+          action: 'REPLY_TEXT',
+          reply: buildReply(`El cristal con filtro Blueblocker (luz azul para pantallas) cuesta $${pBlue.toLocaleString()} (solo cristal, armazones desde $${pArm.toLocaleString()}).`, "¿Tenés receta médica o precisás coordinar un chequeo gratis?"),
+          patch,
+          intent: intentResult
+        };
+      }
+      if (prodSlug === 'blanco') {
+        const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
+        return {
+          action: 'REPLY_TEXT',
+          reply: buildReply(`El cristal blanco estándar tiene un costo de $${pBlanco.toLocaleString()} (solo cristal, armazones aparte desde $${pArm.toLocaleString()}).`, "¿Querés consultar presupuesto con tu receta o coordinar chequeo gratis?"),
+          patch,
+          intent: intentResult
+        };
+      }
+      if (prodSlug === 'armazon') {
+        patch.funnel = 'PRESUPUESTADO';
+        return {
+          action: 'REPLY_TEXT',
+          reply: buildReply(`Contamos con variedad de armazones desde $${pArm.toLocaleString()} (los cristales van aparte según la receta).`, "¿Buscás armazones de hombre, dama, niños o querés probarte en el local?"),
+          patch,
+          intent: intentResult
+        };
+      }
+      if (prodSlug && prodSlug.startsWith('bifocal')) {
+        const pSinAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_sin_ar.precio;
+        const pConAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_con_ar.precio;
+        const pSmartSinAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_smart_sin_ar.precio;
+        const pSmartConAr = config.datos_que_el_bot_informa.bifocales.items.bifocal_smart_con_ar.precio;
+
+        return {
+          action: 'REPLY_TEXT',
+          reply: buildReply(`En cristales bifocales contamos con opciones estándar desde $${pSinAr.toLocaleString()} ($${pConAr.toLocaleString()} con antirreflejo) y la línea Bifocal Smart de lumen invisible desde $${pSmartSinAr.toLocaleString()} ($${pSmartConAr.toLocaleString()} con antirreflejo). Precios solo del cristal (armazones aparte desde $${pArm.toLocaleString()}).`),
+          patch,
+          intent: intentResult
         };
       }
 
-      // Convenios activos confirmados en config
-      if (msg.includes("caja bancaria") || msg.includes("cjpb")) {
-        const desc = config.convenios.activos.caja_bancaria_cjpb.descuento;
-        return { action: 'REPLY_TEXT', reply: buildReply(`Con Caja Bancaria (CJPB) tenés ${desc}. Para aplicarlo, se coordina al momento de la compra en el local.`), patch };
-      }
-      if (msg.includes("catolico") || msg.includes("católico")) {
-        const desc = config.convenios.activos.circulo_catolico.descuento;
-        return { action: 'REPLY_TEXT', reply: buildReply(`Para funcionarios del Círculo Católico contamos con ${desc}. Se presenta en el local al comprar.`), patch };
-      }
-      if (msg.includes("evangelico") || msg.includes("evangélico")) {
-        const desc = config.convenios.activos.hospital_evangelico.descuento;
-        return { action: 'REPLY_TEXT', reply: buildReply(`Para funcionarios del Hospital Evangélico contamos con ${desc}. Se aplica en el local al comprar.`), patch };
-      }
-      if (msg.includes("stiq") || msg.includes("quimica") || msg.includes("química")) {
-        const desc = config.convenios.activos.sindicato_quimica.descuento;
-        return { action: 'REPLY_TEXT', reply: buildReply(`Con el Sindicato de la Industria Química (STIQ) tenés ${desc}.`), patch };
-      }
-      if (msg.includes("bps")) {
-        const desc = config.convenios.activos.bps.descuento;
-        return { action: 'REPLY_TEXT', reply: buildReply(`Trabajamos con ${desc}`), patch };
-      }
-
+      const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
+      const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
+      const pBlue = config.datos_que_el_bot_informa.cristales_simples.items.blueblocker.precio;
+      patch.funnel = 'PRESUPUESTADO';
       return {
         action: 'REPLY_TEXT',
-        reply: buildReply(
-          "Trabajamos con Caja Bancaria (CJPB), STIQ, BPS, Círculo Católico, Hospital Evangélico y Ferrocarril Norte. ¿A cuál pertenecés así te paso el descuento exacto?"
-        ),
-        patch
+        reply: buildReply(`El precio depende del cristal que necesites: tenemos cristales desde $${pBlanco.toLocaleString()} (Blanco), $${pAr.toLocaleString()} (Antirreflejo) y $${pBlue.toLocaleString()} (Blueblocker). Los armazones van aparte desde $${pArm.toLocaleString()}.`),
+        patch,
+        intent: intentResult
       };
     }
 
-    // 17. TIEMPOS DE ENTREGA (V1.1)
-    if (msg.includes("tarda") || msg.includes("tardan") || msg.includes("cuanto demora") || msg.includes("cuánto demora") || msg.includes("tiempo de entrega") || msg.includes("demora") || msg.includes("demoras") || msg.includes("entregar")) {
+    // D. HORARIOS Y UBICACIÓN
+    if (intentResult.intencion === 'horarios') {
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply(`Estamos en ${config.negocio.direccion}. Atendemos en horario de ${config.negocio.horarios.texto}. Podés pasar a probarte los armazones que gustes en cualquier momento.`),
+        patch,
+        intent: intentResult
+      };
+    }
+
+    // E. TIEMPOS DE ENTREGA
+    if (intentResult.intencion === 'tiempo_entrega') {
       const tMono = config.tiempos_de_entrega.monofocales_estandar;
       const tMulti = config.tiempos_de_entrega.multifocales_progresivos;
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(`Los cristales monofocales tardan ${tMono} y los multifocales/bifocales ${tMulti}.`),
-        patch
+        patch,
+        intent: intentResult
       };
     }
 
-    // 18. GARANTÍAS Y ADAPTACIÓN (V1.1)
-    if (msg.includes("garantia") || msg.includes("garantía") || msg.includes("garantias") || msg.includes("garantías")) {
-      if (msg.includes("especifica") || msg.includes("específica") || msg.includes("modelo") || msg.includes("este cristal")) {
-        return {
-          action: 'HANDOFF_HUMAN',
-          reply: buildHandoffReply("Para confirmarte la garantía exacta de ese producto específico,"),
-          patch: { funnel: 'TRASPASO_HUMANO' }
-        };
-      }
+    // F. GARANTÍAS DE ADAPTACIÓN
+    if (intentResult.intencion === 'garantias') {
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(`${config.garantias.adaptacion} ¿Precisás consultar por algún modelo en particular?`),
-        patch
+        patch,
+        intent: intentResult
       };
     }
 
-    // 19. ENVÍOS Y TOMA DE MEDIDAS (V1.1)
-    if (msg.includes("artigas") || msg.includes("salto") || msg.includes("rivera") || msg.includes("maldonado") || msg.includes("rocha") || msg.includes("tacuarembo") || msg.includes("tacuarembó") || msg.includes("colonia") || msg.includes("minas") || msg.includes("durazno") || msg.includes("florida") || msg.includes("san jose") || msg.includes("san josé") || msg.includes("mercedes") || msg.includes("treinta y tres") || msg.includes("rio negro") || msg.includes("soriano") || msg.includes("cerro largo") || msg.includes("interior") || msg.includes("envio") || msg.includes("envíos") || msg.includes("despacho") || msg.includes("domicilio")) {
+    // G. ENVÍOS
+    if (intentResult.intencion === 'envios') {
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(config.mensajes.envios),
-        patch
+        patch,
+        intent: intentResult
       };
     }
 
-    // 20. CUOTAS / TARJETAS / MEDIOS DE PAGO (V1.1)
-    if (msg.includes("cuota") || msg.includes("cuotas") || msg.includes("tarjeta") || msg.includes("pago") || msg.includes("credito") || msg.includes("crédito") || msg.includes("debito") || msg.includes("débito") || msg.includes("financiar") || msg.includes("compra agil") || msg.includes("compra ágil") || msg.includes("pago despues") || msg.includes("pago después")) {
+    // H. CUOTAS / TARJETAS
+    if (intentResult.intencion === 'cuotas') {
       return {
         action: 'REPLY_TEXT',
         reply: buildReply(config.mensajes.cuotas),
-        patch
+        patch,
+        intent: intentResult
       };
     }
 
-    // 21. HORARIOS / DÍAS / APERTURA / PROBARSE EN EL LOCAL
-    if (msg.includes("horario") || msg.includes("horarios") || msg.includes("abren") || msg.includes("abierto") || msg.includes("que hora") || msg.includes("qué hora") || msg.includes("hasta que hora") || msg.includes("hasta qué hora") || msg.includes("probarme") || msg.includes("probar") || msg.includes("pasar por el local") || msg.includes("ir al local") || msg.includes("pasar por ahi") || msg.includes("pasar por ahí")) {
+    // I. TEST GRATIS
+    if (intentResult.intencion === 'test_gratis') {
       return {
         action: 'REPLY_TEXT',
-        reply: buildReply(
-          `Estamos en ${config.negocio.direccion}. Atendemos en horario de ${config.negocio.horarios.texto}. Podés pasar a probarte los armazones que gustes en cualquier momento.`,
-          "¿Precisás receta o querés coordinar chequeo gratis?"
-        ),
-        patch
+        reply: buildReply(config.mensajes.test_gratis),
+        patch,
+        intent: intentResult
       };
     }
 
-    // 22. ARMAZONES
-    if (msg.includes("armazon") || msg.includes("armazón") || msg.includes("armazones") || msg.includes("marco") || msg.includes("marcos") || msg.includes("incuyen") || msg.includes("incluyen")) {
-      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
-      patch.funnel = 'PRESUPUESTADO';
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(
-          `Contamos con variedad de armazones desde $${pArm.toLocaleString()} (los cristales van aparte según la receta).`,
-          "¿Buscás armazones de hombre, dama, niños o querés probarte en el local?"
-        ),
-        patch
-      };
-    }
-
-    // 23. PRECIOS GENERALES
-    if (msg.includes("precio") || msg.includes("cuanto sale") || msg.includes("cuanto me saldria") || msg.includes("cuánto sale") || msg.includes("cuánto me saldría") || msg.includes("cristal") || msg.includes("precios") || msg.includes("cotiz")) {
-      const pBlanco = config.datos_que_el_bot_informa.cristales_simples.items.blanco.precio;
-      const pAr = config.datos_que_el_bot_informa.cristales_simples.items.antirreflejo.precio;
-      const pBlue = config.datos_que_el_bot_informa.cristales_simples.items.blueblocker.precio;
-      const pArm = config.datos_que_el_bot_informa.armazones.precio_desde;
-
-      patch.funnel = 'PRESUPUESTADO';
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(
-          `El precio depende del cristal que necesites: tenemos cristales desde $${pBlanco.toLocaleString()} (Blanco), $${pAr.toLocaleString()} (Antirreflejo) y $${pBlue.toLocaleString()} (Blueblocker). Los armazones van aparte desde $${pArm.toLocaleString()}.`,
-          "¿Tenés tu receta a mano para darte el precio exacto?"
-        ),
-        patch
-      };
-    }
-
-    // 24. AGRADECIMIENTOS
-    if (msg.includes("gracias") || msg.includes("dale ok") || msg.includes("buenisimo") || msg.includes("buenísimo") || msg.includes("impecable") || msg.includes("dale barbaro") || msg.includes("dale bárbaro")) {
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply("¡Por nada! 😊 Quedamos a las órdenes por cualquier consulta. ¡Que tengas un excelente día!"),
-        patch
-      };
-    }
-
-    // 25. DESPEDIDAS SECUNDARIAS
-    if (msg.includes("igualmente") || msg.includes("saludos") || msg.includes("que pases bien")) {
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply("¡Muchas gracias a ti! 👍 Saludos y buena jornada."),
-        patch
-      };
-    }
-
-    // 26. UBICACIÓN
-    if (msg.includes("donde") || msg.includes("dónde") || msg.includes("ubicados") || msg.includes("ubicacion") || msg.includes("ubicación") || msg.includes("direccion") || msg.includes("dirección") || msg.includes("montevideo")) {
-      return {
-        action: 'REPLY_TEXT',
-        reply: buildReply(
-          `Estamos en ${config.negocio.direccion}. Atendemos en horario de ${config.negocio.horarios.texto}.`,
-          "¿Tenés receta o preferís un chequeo gratis?"
-        ),
-        patch
-      };
-    }
-
-    // 27. LENTES DE SOL
-    if (msg.includes("lentes de sol") || msg.includes("lente de sol") || msg.includes("gafas de sol") || msg.includes("polarizado") || msg.includes("polarizados") || (msg.includes("sol") && (msg.includes("lente") || msg.includes("gafa")))) {
+    // J. LENTES DE SOL
+    if (intentResult.intencion === 'lentes_de_sol') {
       return {
         action: 'REPLY_TEXT',
         reply: buildReply("Tenemos colecciones de sol con filtro UV400 y polarizados (+50 marcas como Oahu, Bric à Brac, GX7). 😎 ¿Buscás algún modelo en particular o querés probarte en el local?"),
-        patch
+        patch,
+        intent: intentResult
       };
     }
 
-    // 28. FALLBACK GENERAL CON LOG EXPLÍCITO DE CONSULTA SIN REGLA
-    console.log(`[DEBUG] Sin regla para: "${userMessage}" - usando fallback.`);
-    patch.saludo_enviado = true;
-
-    if (yaSaludado) {
+    // K. AGRADECIMIENTOS
+    if (intentResult.intencion === 'agradecimiento') {
       return {
         action: 'REPLY_TEXT',
-        reply: "Con gusto te asesoramos. Podés enviarnos la foto de tu receta o contarme qué cristal o armazón buscás para darte la info exacta.",
-        patch
+        reply: buildReply("¡Por nada! 😊 Quedamos a las órdenes por cualquier consulta. ¡Que tengas un excelente día!"),
+        patch,
+        intent: intentResult
       };
-    } else {
+    }
+
+    // L. DESPEDIDAS
+    if (intentResult.intencion === 'despedida') {
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply("¡Muchas gracias a ti! 👍 Saludos y buena jornada."),
+        patch,
+        intent: intentResult
+      };
+    }
+
+    // M. PROMO / AD
+    if (intentResult.intencion === 'promo') {
       patch.preguntado_receta_chequeo = true;
       return {
         action: 'REPLY_TEXT',
-        reply: `¡Hola! 😊 En ${config.negocio.nombre} (${config.negocio.direccion}) hacemos test visual 100% GRATIS. ¿Ya tenés tu receta médica o querés coordinar el chequeo gratis en el local?`,
-        patch
+        reply: buildReply(`Veo que nos escribes por nuestra promo activa. En ${config.negocio.nombre} (${config.negocio.direccion}) contamos con test visual 100% GRATIS.`, "¿Ya cuentas con tu receta médica o prefieres coordinar tu chequeo gratis en el local?"),
+        patch,
+        intent: intentResult
       };
     }
+
+    // N. SALUDO
+    if (intentResult.intencion === 'saludo') {
+      patch.saludo_enviado = true;
+      return {
+        action: 'REPLY_TEXT',
+        reply: buildReply(`¡Hola! 😊 En ${config.negocio.nombre} (${config.negocio.direccion}) hacemos test visual 100% GRATIS. ¿Ya tenés tu receta médica o querés coordinar el chequeo gratis en el local?`),
+        patch,
+        intent: intentResult
+      };
+    }
+
+    // FALLBACK GENERAL
+    patch.saludo_enviado = true;
+    return {
+      action: 'REPLY_TEXT',
+      reply: yaSaludado
+        ? "Con gusto te asesoramos. Podés enviarnos la foto de tu receta o contarme qué cristal o armazón buscás para darte la info exacta."
+        : `¡Hola! 😊 En ${config.negocio.nombre} (${config.negocio.direccion}) hacemos test visual 100% GRATIS. ¿Ya tenés tu receta médica o querés coordinar el chequeo gratis en el local?`,
+      patch,
+      intent: intentResult
+    };
   }
 };
