@@ -17,6 +17,7 @@ const PIPELINE_ID = "wyP2TvxIOaDFD6g5jz4s"; // Pipeline de Ventas - Óptica Cír
 const STAGE_NUEVO_LEAD = "1cfaaaf5-8cdc-45cd-8fd2-8a6b29c9681a"; // 1. Nuevo Lead
 const OUR_BOT_APP_ID = "6a498c97418d7351792c4b78"; // ID de la app de nuestro bot
 const STAFF_WINDOW_MS = 30 * 60 * 1000; // Ventana de 30 minutos para considerar intervención humana activa
+const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000; // Ventana de 24 horas para cron de liberación automática
 
 // Memoria de deduplicación de respuestas salientes consecutivas por contacto
 const lastSentReplies = new Map();
@@ -32,6 +33,96 @@ await store.init();
 function normalizeText(txt) {
   return (txt || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 }
+
+// CRON JOB: Revisa todos los contactos con tag atencion_humana y libera automáticamente los que tengan +24hs sin staff
+async function ejecutarCronLiberacion24hs() {
+  console.log('[CRON] Ejecutando revisión periódica de liberación de tag atencion_humana (24hs)...');
+  try {
+    const res = await fetch(`https://services.leadconnectorhq.com/contacts/?locationId=${GHL_LOCATION_ID}&query=atencion_humana&limit=100`, {
+      headers: {
+        'Authorization': `Bearer ${GHL_TOKEN}`,
+        'Version': '2021-07-28',
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!res.ok) return;
+    const data = await res.json();
+    const contacts = (data.contacts || []).filter(c => (c.tags || []).some(t => t.toLowerCase().includes('humana')));
+
+    const now = Date.now();
+
+    for (const c of contacts) {
+      const contactId = c.id;
+
+      const convRes = await fetch(`https://services.leadconnectorhq.com/conversations/search?locationId=${GHL_LOCATION_ID}&contactId=${contactId}`, {
+        headers: {
+          'Authorization': `Bearer ${GHL_TOKEN}`,
+          'Version': '2021-07-28',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!convRes.ok) continue;
+      const convData = await convRes.json();
+      const convId = convData.conversations?.[0]?.id;
+      if (!convId) continue;
+
+      const msgRes = await fetch(`https://services.leadconnectorhq.com/conversations/${convId}/messages?limit=25`, {
+        headers: {
+          'Authorization': `Bearer ${GHL_TOKEN}`,
+          'Version': '2021-07-28',
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!msgRes.ok) continue;
+      const msgData = await msgRes.json();
+      const messages = msgData.messages?.messages || [];
+
+      // Encontrar el último mensaje enviado por el Staff humano (NO bot, NO actividad)
+      const lastStaffMsg = messages.find(m => {
+        if (m.direction !== 'outbound') return false;
+        if (m.type === 28 || m.messageType === 'TYPE_ACTIVITY_OPPORTUNITY' || (m.body && m.body.includes('Opportunity created'))) return false;
+        const appId = m.meta?.marketplace?.appId;
+        if (appId === OUR_BOT_APP_ID) return false;
+        return Boolean((m.body || "").trim());
+      });
+
+      if (!lastStaffMsg) continue;
+
+      const lastStaffTs = new Date(lastStaffMsg.dateAdded).getTime();
+      const elapsedMs = now - lastStaffTs;
+
+      if (elapsedMs >= TWENTY_FOUR_HOURS_MS) {
+        // Remover tag atencion_humana de GHL
+        await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}/tags`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${GHL_TOKEN}`,
+            'Version': '2021-07-28',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ tags: ['atencion_humana'] })
+        });
+
+        // Actualizar estado a REACTIVADO dejando saludo_enviado: true
+        await store.setState(contactId, {
+          funnel: 'REACTIVADO',
+          saludo_enviado: true
+        });
+
+        console.log(`[CRON] Tag atencion_humana liberado por 24hs para ${contactId}, último staff: ${lastStaffMsg.dateAdded}`);
+      }
+    }
+  } catch (err) {
+    console.error('[CRON] Error en la liberación de 24hs:', err.message);
+  }
+}
+
+// Iniciar cron cada 30 minutos y ejecutar una vez al iniciar el servidor
+setInterval(ejecutarCronLiberacion24hs, 30 * 60 * 1000);
+setTimeout(ejecutarCronLiberacion24hs, 5000);
 
 // Consulta la API oficial de GHL con ventana de tiempo para intervención del Staff (30 min)
 async function checkGHLHistoryAndStaff(contactId) {
@@ -68,8 +159,6 @@ async function checkGHLHistoryAndStaff(contactId) {
       appId: m.meta?.marketplace?.appId || null
     }));
 
-    console.log(`[DEBUG] historial de conversación traído de GHL API para ${contactId}:`, JSON.stringify(historySummary, null, 2));
-
     const hasPreviousMessages = messages.length > 1;
     const now = Date.now();
 
@@ -81,7 +170,6 @@ async function checkGHLHistoryAndStaff(contactId) {
     for (const m of messages) {
       if (m.direction !== 'outbound') continue;
 
-      // Ignorar eventos de actividad del sistema (Opportunity created, stage changes, etc.)
       if (m.type === 28 || m.messageType === 'TYPE_ACTIVITY_OPPORTUNITY' || (m.body && m.body.includes('Opportunity created'))) {
         continue;
       }
@@ -93,7 +181,6 @@ async function checkGHLHistoryAndStaff(contactId) {
       const msgTs = new Date(m.dateAdded).getTime();
       const elapsedMin = Math.round((now - msgTs) / 60000);
 
-      // Solo es Staff Activo si fue enviado en los últimos 30 minutos Y después del último mensaje del cliente
       if (now - msgTs <= STAFF_WINDOW_MS && msgTs >= lastInboundTs) {
         isStaffActive = true;
         console.log(`[DEBUG] Staff detectado por mensaje: "${bodyText || '[Nota de voz/Adjunto]'}" del ${m.dateAdded} (hace ${elapsedMin} min)`);
@@ -131,7 +218,15 @@ async function verificarTagHumano(contactId) {
 
     if (isPaused) {
       await store.setState(contactId, { funnel: 'TRASPASO_HUMANO' });
+    } else {
+      // PARTE 1 — CONTROL MANUAL: Si se removió el tag a mano en GHL, reactivar funnel
+      const currentState = await store.getState(contactId);
+      if (currentState.funnel === 'TRASPASO_HUMANO') {
+        await store.setState(contactId, { funnel: 'REACTIVADO', saludo_enviado: true });
+        console.log(`[LIBERACION MANUAL] Tag atencion_humana no presente en GHL para ${contactId}. IA reactivada sin re-saludar.`);
+      }
     }
+
     return isPaused;
   } catch (e) {
     console.error("Error verificando tags de humano:", e.message);
@@ -176,7 +271,6 @@ async function sendGHLMessage(contactId, messageText, channelType = 'WhatsApp') 
   const lastSent = lastSentReplies.get(contactId);
   const normCurrent = normalizeText(messageText);
 
-  // Deduplicación estricta de respuestas idénticas consecutivas (<60 segundos por texto normalizado)
   if (lastSent && normalizeText(lastSent.text) === normCurrent && (now - lastSent.sentAt) < 60000) {
     console.log(`[DEBUG] Respuesta idéntica consecutiva descartada por deduplicación para ${contactId}: "${messageText}"`);
     return;
@@ -267,8 +361,8 @@ async function procesarLoteDeMensajes(contactId, messages) {
   }
 
   const isHumanActive = await verificarTagHumano(contactId);
-  if (isHumanActive || currentState.funnel === 'TRASPASO_HUMANO') {
-    console.log(`⏸️ Mensaje ignorado por la IA porque Nico/Staff tiene el control de ${contactId}.`);
+  if (isHumanActive) {
+    console.log(`⏸️ Mensaje ignorado por la IA porque Nico/Staff tiene la etiqueta atencion_humana en ${contactId}.`);
     return null;
   }
 
@@ -392,5 +486,5 @@ process.on('SIGTERM', async () => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Desambiguación de Receta y Logs de Historial GHL API.`);
+  console.log(`🤖 Agente IA Omnicanal Círculo Visión listo en puerto ${PORT} con Cron 24h Liberación Automática de Tag.`);
 });
