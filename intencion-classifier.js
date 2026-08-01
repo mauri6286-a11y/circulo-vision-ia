@@ -42,7 +42,7 @@ Tu tarea es analizar el mensaje del cliente y el historial de la conversación, 
     "tiene_receta": true | false | null
   },
   "requiere_humano": boolean,
-  "razon_humano": "fotocromaticos" | "varilux" | "lente_completo" | "reclamo" | "convenio_a_consultar" | "ajustes_adaptacion" | "turnos" | "garantia_producto_especifico" | "otro" | null,
+  "razon_humano": "fotocromaticos" | "varilux" | "lente_completo" | "reclamo" | "convenio_a_consultar" | "ajustes_adaptacion" | "turnos" | "garantia_producto_especifico" | "datos_bancarios" | "otro" | null,
   "resumen": "Resumen corto de 1 frase"
 }
 
@@ -53,7 +53,12 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
 4. "consulta_convenio":
    - Si menciona un convenio activo (${conveniosActivos.join(', ')}), poner el slug en entidades.convenio y requiere_humano: false.
    - Si menciona UN CONVENIO NO LISTADO O PENDIENTE (ej: "antel", "ancap", "sayago", "fitlab"), poner el slug en entidades.convenio y exige requiere_humano: true, razon_humano: "convenio_a_consultar".
-5. "requiere_humano: true": Si pregunta por fotocromáticos, multifocales/varilux, lente completo armado, reclamos, adaptaciones, turnos, o preguntas fuera de tema (wifi, mascotas).
+5. "requiere_humano: true": 
+   - Fotocromáticos / Transitions -> razon_humano: "fotocromaticos".
+   - Multifocales / Progresivos / Varilux -> razon_humano: "varilux".
+   - Lente completo armado -> razon_humano: "lente_completo".
+   - Datos bancarios / Transferencias / Dónde depositar / Pago por banco -> razon_humano: "datos_bancarios".
+   - Reclamos, adaptaciones, turnos, preguntas fuera de tema.
 6. "consulta_precio": Si pregunta precio de un producto puntual (antirreflejo, blueblocker, cristal blanco, bifocal, armazón), incluir "consulta_precio" y poner el slug exacto en entidades.producto.
 7. "otra" / "saludo": Si el mensaje es solo emojis, un saludo casual suelto ("hola cómo va", "buenas"), o un comentario ambiguo no relacionado con una consulta directa de óptica (ej: "de nuevo el día del padre 🥰🥳💪?"), clasificar como "otra" o "saludo". NO inventar consulta comercial donde no la hay.
 8. NO inventar datos.
@@ -163,15 +168,16 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
     }
   }
 
-  // 6. Derivaciones requeridas
-  if (lowerMsg.includes("fotocrom") || lowerMsg.includes("transition") || lowerMsg.includes("varilux") || lowerMsg.includes("multifocal") || lowerMsg.includes("completo") || lowerMsg.includes("armado") || lowerMsg.includes("caen") || lowerMsg.includes("ajuste") || lowerMsg.includes("turno")) {
+  // 6. Derivaciones requeridas (Multifocales/Progresivos, Datos Bancarios/Transferencias, Fotocromáticos, etc.)
+  if (lowerMsg.includes("fotocrom") || lowerMsg.includes("transition") || lowerMsg.includes("varilux") || lowerMsg.includes("multifocal") || lowerMsg.includes("progresiv") || lowerMsg.includes("completo") || lowerMsg.includes("armado") || lowerMsg.includes("caen") || lowerMsg.includes("ajuste") || lowerMsg.includes("turno") || lowerMsg.includes("transferenci") || lowerMsg.includes("cuenta bancaria") || lowerMsg.includes("deposito") || lowerMsg.includes("datos para transferir") || lowerMsg.includes("transferir") || lowerMsg.includes("donde deposito")) {
     intencionesSet.add("consulta_derivar_humano");
     requiere_humano = true;
-    if (lowerMsg.includes("fotocrom")) razon_humano = "fotocromaticos";
-    else if (lowerMsg.includes("varilux") || lowerMsg.includes("multifocal")) razon_humano = "varilux";
+    if (lowerMsg.includes("fotocrom") || lowerMsg.includes("transition")) razon_humano = "fotocromaticos";
+    else if (lowerMsg.includes("varilux") || lowerMsg.includes("multifocal") || lowerMsg.includes("progresiv")) razon_humano = "varilux";
     else if (lowerMsg.includes("completo") || lowerMsg.includes("armado")) razon_humano = "lente_completo";
     else if (lowerMsg.includes("caen") || lowerMsg.includes("ajuste")) razon_humano = "ajustes_adaptacion";
     else if (lowerMsg.includes("turno")) razon_humano = "turnos";
+    else if (lowerMsg.includes("transferenci") || lowerMsg.includes("cuenta bancaria") || lowerMsg.includes("deposito") || lowerMsg.includes("transferir") || lowerMsg.includes("donde deposito")) razon_humano = "datos_bancarios";
   }
 
   // 7. Precios / Productos

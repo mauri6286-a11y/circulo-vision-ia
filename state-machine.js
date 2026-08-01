@@ -83,7 +83,7 @@ export const StateMachine = {
       if (intentResult.razon_humano === "fotocromaticos") {
         reasonMsg = "Para darte el presupuesto exacto de cristales fotocromáticos según tu receta,";
       } else if (intentResult.razon_humano === "varilux") {
-        reasonMsg = "Para lentes multifocales Varilux y cotización personalizada,";
+        reasonMsg = "Para lentes multifocales / progresivos y cotización personalizada,";
       } else if (intentResult.razon_humano === "lente_completo") {
         reasonMsg = "Para cotizarte el lente completo armado con el armazón y tu receta sumados,";
       } else if (intentResult.razon_humano === "convenio_a_consultar") {
@@ -94,6 +94,8 @@ export const StateMachine = {
         reasonMsg = "Para coordinar la reserva de tu turno,";
       } else if (intentResult.razon_humano === "garantia_producto_especifico") {
         reasonMsg = "Para confirmarte la garantía exacta de ese producto específico,";
+      } else if (intentResult.razon_humano === "datos_bancarios") {
+        reasonMsg = "Para el pago por transferencia te paso con nuestro equipo que te da los datos. 😊";
       }
 
       return {
