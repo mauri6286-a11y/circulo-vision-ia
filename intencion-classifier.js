@@ -1,4 +1,4 @@
-﻿import { getConfig } from './config-loader.js';
+import { getConfig } from './config-loader.js';
 
 export async function clasificarIntencion({ mensaje, historial = [], config = null }) {
   const cfg = config || getConfig();
@@ -58,7 +58,8 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
         }
       };
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      // Modelo actualizado a gemini-2.0-flash activo
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -74,7 +75,6 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
       if (!rawText) throw new Error('Respuesta vacía de Gemini API');
 
       const resultJson = JSON.parse(rawText);
-      // Asegurar compatibilidad array intenciones
       if (!Array.isArray(resultJson.intenciones) && resultJson.intencion) {
         resultJson.intenciones = [resultJson.intencion];
       }

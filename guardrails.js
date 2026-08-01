@@ -1,4 +1,4 @@
-﻿import { getConfig } from './config-loader.js';
+import { getConfig } from './config-loader.js';
 
 export function validarMensajeSaliente(messageText, config = null) {
   const cfg = config || getConfig();
@@ -6,7 +6,7 @@ export function validarMensajeSaliente(messageText, config = null) {
     return { ok: true, reason: null };
   }
 
-  // 1. EXTRAER PRECIOS OFICIALES PERMITIDOS
+  // 1. EXTRAER PRECIOS OFICIALES PERMITIDOS DESDE CONFIG
   const allowedPrices = new Set();
 
   const simples = cfg.datos_que_el_bot_informa?.cristales_simples?.items || {};
@@ -22,11 +22,19 @@ export function validarMensajeSaliente(messageText, config = null) {
   const armPrecioDesde = cfg.datos_que_el_bot_informa?.armazones?.precio_desde;
   if (typeof armPrecioDesde === 'number') allowedPrices.add(armPrecioDesde);
 
-  // Parsear precios en el texto saliente ($X.XXX, $XXXX)
-  const priceMatches = messageText.match(/\$\s*[\d.]+/g) || [];
+  // Extraer montos que inicien con $ (ej: $2.200, $2.490, $1.300, $3.200)
+  const priceMatches = messageText.match(/\$\s*\d{1,3}(?:\.\d{3})+|\$\s*\d+/g) || [];
 
   for (const match of priceMatches) {
-    const numericValue = parseInt(match.replace(/[^\d]/g, ''), 10);
+    const cleaned = match.replace(/\$\s*/, '').trim();
+
+    let numericValue = 0;
+    if (/^\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+      numericValue = parseInt(cleaned.replace(/\./g, ''), 10);
+    } else {
+      numericValue = parseInt(cleaned.replace(/[^\d]/g, ''), 10);
+    }
+
     if (!isNaN(numericValue) && !allowedPrices.has(numericValue)) {
       console.error(`[GUARDRAIL] precio no autorizado detectado: ${match} (${numericValue})`);
       return {
@@ -52,8 +60,7 @@ export function validarMensajeSaliente(messageText, config = null) {
   const textPctMatches = messageText.match(/(\d+)%/g) || [];
   for (const match of textPctMatches) {
     const pctVal = parseInt(match.replace('%', ''), 10);
-    // 100% de test visual gratis es válido
-    if (pctVal === 100) continue;
+    if (pctVal === 100) continue; // 100% test gratis es permitido
 
     if (!allowedDiscounts.has(pctVal)) {
       console.error(`[GUARDRAIL] descuento de convenio no autorizado detectado: ${match}`);
