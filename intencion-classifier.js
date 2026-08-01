@@ -58,16 +58,22 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
         }
       };
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      const cleanKey = apiKey.trim();
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${cleanKey}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': cleanKey
+        },
         body: JSON.stringify(payload)
       });
 
       if (!res.ok) {
         const errText = await res.text();
         if (res.status === 429) {
-          console.error(`[ERROR 429] Cuota o Facturación Excedida en Gemini API Key (Proyecto sin Billing o límite 0): ${errText}`);
+          console.error(`[ERROR 429] Cuota o Facturación Excedida en Gemini API Key: ${errText}`);
+        } else if (res.status === 401) {
+          console.error(`[ERROR 401] Clave bloqueda o sin permiso de API (API_KEY_SERVICE_BLOCKED): ${errText}`);
         }
         throw new Error(`Gemini API HTTP ${res.status}: ${errText}`);
       }
