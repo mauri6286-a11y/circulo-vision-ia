@@ -1,4 +1,4 @@
-﻿import express from 'express';
+import express from 'express';
 import dotenv from 'dotenv';
 import { StateMachine } from './state-machine.js';
 import { WebhookGuard } from './webhook-guard.js';
@@ -36,6 +36,21 @@ await store.init();
 
 function normalizeText(txt) {
   return (txt || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+}
+
+function extractTagStrings(rawTags) {
+  if (!rawTags) return [];
+  if (Array.isArray(rawTags)) {
+    return rawTags.map(t => {
+      if (typeof t === 'string') return t;
+      if (t && typeof t === 'object') return t.name || t.tag || t.label || String(t);
+      return String(t || '');
+    });
+  }
+  if (typeof rawTags === 'string') {
+    return rawTags.split(',').map(s => s.trim());
+  }
+  return [];
 }
 
 function esHorarioLaboralUruguay() {
@@ -76,7 +91,10 @@ async function ejecutarCronLiberacion24hs() {
 
     if (!res.ok) return;
     const data = await res.json();
-    const contacts = (data.contacts || []).filter(c => (c.tags || []).some(t => t.toLowerCase().includes('humana')));
+    const contacts = (data.contacts || []).filter(c => {
+      const tagsList = extractTagStrings(c.tags);
+      return tagsList.some(t => t.toLowerCase().includes('humana'));
+    });
 
     const now = Date.now();
 
@@ -228,6 +246,7 @@ async function checkGHLHistoryAndStaff(contactId) {
   }
 }
 
+// Verifica de forma rigurosa la presencia del tag atencion_humana en GHL para silenciar el bot INDEPENDIENTEMENTE del funnel
 async function verificarTagHumano(contactId) {
   try {
     const res = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}`, {
@@ -238,16 +257,21 @@ async function verificarTagHumano(contactId) {
       }
     });
 
-    if (!res.ok) return false;
+    if (!res.ok) {
+      console.warn(`[verificarTagHumano] HTTP ${res.status} al consultar contacto ${contactId}`);
+      return false;
+    }
     const data = await res.json();
-    const tags = data.contact?.tags || [];
+    const rawTags = data.contact?.tags || data.tags || [];
+    const tagsList = extractTagStrings(rawTags);
 
-    const isPaused = tags.some(t => {
+    const isPaused = tagsList.some(t => {
       const lower = t.toLowerCase();
       return lower.includes("humano") || lower.includes("atencion_humana") || lower.includes("pausad") || lower.includes("staff");
     });
 
     if (isPaused) {
+      console.log(`[verificarTagHumano] Tag humano detectado en GHL para ${contactId}: [${tagsList.join(', ')}]. Sincronizando funnel TRASPASO_HUMANO.`);
       await store.setState(contactId, { funnel: 'TRASPASO_HUMANO' });
     } else {
       const currentState = await store.getState(contactId);
@@ -259,7 +283,7 @@ async function verificarTagHumano(contactId) {
 
     return isPaused;
   } catch (e) {
-    console.error("Error verificando tags de humano:", e.message);
+    console.error("[verificarTagHumano] Error verificando tags de humano:", e.message);
     return false;
   }
 }
@@ -361,6 +385,14 @@ async function procesarLoteDeMensajes(contactId, messages) {
   const currentState = await store.getState(contactId);
   console.log(`[DEBUG] Estado actual leído desde GHL para ${contactId}:`, JSON.stringify(currentState));
 
+  // 2. VERIFICACIÓN PRIMARIA Y RIGUROSA DEL TAG DE ATENCIÓN HUMANA DESDE GHL API
+  // Si el tag atencion_humana está presente (colocado a mano o por el bot), el bot NUNCA responde, independientemente de la etapa del funnel (NUEVO_LEAD, etc.)
+  const isHumanActive = await verificarTagHumano(contactId);
+  if (isHumanActive || currentState.funnel === 'TRASPASO_HUMANO') {
+    console.log(`⏸️ Mensaje ignorado por la IA porque Nico/Staff o tag atencion_humana está presente para ${contactId} (Funnel actual: ${currentState.funnel}, Tag humano: ${isHumanActive}).`);
+    return null;
+  }
+
   // Detección exhaustiva de adjuntos (PDF, comprobante, imagen, audio, archivo)
   const hasAttachment = messages.some(m => {
     if (m.hasAttachment) return true;
@@ -389,12 +421,6 @@ async function procesarLoteDeMensajes(contactId, messages) {
 
   if (ghlAudit.hasPreviousMessages && !currentState.saludo_enviado) {
     currentState.saludo_enviado = true;
-  }
-
-  const isHumanActive = await verificarTagHumano(contactId);
-  if (isHumanActive || currentState.funnel === 'TRASPASO_HUMANO') {
-    console.log(`⏸️ Mensaje ignorado por la IA porque Nico/Staff tiene el control de ${contactId}.`);
-    return null;
   }
 
   // MANEJO DE ADJUNTOS / COMPROBANTES / PDF: JAMÁS SALUDA NI USA PLANTILLA DE PITCH
