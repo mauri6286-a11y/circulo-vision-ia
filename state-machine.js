@@ -96,6 +96,9 @@ export const StateMachine = {
         reasonMsg = "Para confirmarte la garantía exacta de ese producto específico,";
       } else if (intentResult.razon_humano === "datos_bancarios") {
         reasonMsg = "Para el pago por transferencia te paso con nuestro equipo que te da los datos. 😊";
+      } else {
+        console.log(`[DERIVA_POR_DUDA] ${contactId}: mensaje no clasificable, derivando a humano: "${userMessage}"`);
+        reasonMsg = "Dejame que un asesor te ayude con esto,";
       }
 
       return {
@@ -191,24 +194,27 @@ export const StateMachine = {
       } else if (intent === 'promo') {
         patch.preguntado_receta_chequeo = true;
         replySnippets.push(`En ${config.negocio.nombre} (${config.negocio.direccion}) contamos con test visual 100% GRATIS.`);
-      } else if (intent === 'otra' || intent === 'saludo') {
+      } else if (intent === 'saludo') {
         if (!yaSaludado) {
           patch.saludo_enviado = true;
           replySnippets.push(`¡Hola! 😊 ¿En qué te puedo ayudar hoy?`);
         } else {
-          const intentos = currentState.intentos_ambiguos || 0;
-          if (intentos >= 1) {
-            return {
-              action: 'HANDOFF_HUMAN',
-              reply: buildHandoffReply("Con gusto le paso tu consulta a nuestro equipo para que te asesoren en detalle,"),
-              patch: { funnel: 'TRASPASO_HUMANO' },
-              intent: intentResult
-            };
-          } else {
-            patch.intentos_ambiguos = intentos + 1;
-            replySnippets.push(`¿En qué te puedo ayudar? 😊`);
-          }
+          console.log(`[DERIVA_POR_DUDA] ${contactId}: mensaje no clasificable (saludo repetido sin consulta), derivando a humano: "${userMessage}"`);
+          return {
+            action: 'HANDOFF_HUMAN',
+            reply: buildHandoffReply("Dejame que un asesor te ayude con esto,"),
+            patch: { funnel: 'TRASPASO_HUMANO' },
+            intent: intentResult
+          };
         }
+      } else if (intent === 'otra') {
+        console.log(`[DERIVA_POR_DUDA] ${contactId}: mensaje no clasificable, derivando a humano: "${userMessage}"`);
+        return {
+          action: 'HANDOFF_HUMAN',
+          reply: buildHandoffReply("Dejame que un asesor te ayude con esto,"),
+          patch: { funnel: 'TRASPASO_HUMANO' },
+          intent: intentResult
+        };
       }
     }
 
@@ -217,23 +223,13 @@ export const StateMachine = {
     }
 
     if (replySnippets.length === 0) {
-      if (!yaSaludado) {
-        patch.saludo_enviado = true;
-        replySnippets.push(`¡Hola! 😊 ¿En qué te puedo ayudar hoy?`);
-      } else {
-        const intentos = currentState.intentos_ambiguos || 0;
-        if (intentos >= 1) {
-          return {
-            action: 'HANDOFF_HUMAN',
-            reply: buildHandoffReply("Con gusto le paso tu consulta a nuestro equipo para que te asesoren en detalle,"),
-            patch: { funnel: 'TRASPASO_HUMANO' },
-            intent: intentResult
-          };
-        } else {
-          patch.intentos_ambiguos = intentos + 1;
-          replySnippets.push(`¿En qué te puedo ayudar? 😊`);
-        }
-      }
+      console.log(`[DERIVA_POR_DUDA] ${contactId}: mensaje no clasificable (sin snippets), derivando a humano: "${userMessage}"`);
+      return {
+        action: 'HANDOFF_HUMAN',
+        reply: buildHandoffReply("Dejame que un asesor te ayude con esto,"),
+        patch: { funnel: 'TRASPASO_HUMANO' },
+        intent: intentResult
+      };
     }
 
     const combinedBody = replySnippets.join(" ");
@@ -243,7 +239,13 @@ export const StateMachine = {
     if (currentState.ultima_respuesta && currentState.ultima_respuesta.trim().toLowerCase() === finalReplyText.trim().toLowerCase()) {
       console.log(`[DEDUPLICACION] Respuesta idéntica detectada para ${contactId}. Generando variante contextual.`);
       if (finalReplyText.includes("¿En qué te puedo ayudar?")) {
-        finalReplyText = "¡Perfecto! Quedamos a las órdenes por cualquier otra duda. 😊";
+        console.log(`[DERIVA_POR_DUDA] ${contactId}: mensaje no clasificable (respuesta genérica repetida), derivando a humano: "${userMessage}"`);
+        return {
+          action: 'HANDOFF_HUMAN',
+          reply: buildHandoffReply("Dejame que un asesor te ayude con esto,"),
+          patch: { funnel: 'TRASPASO_HUMANO' },
+          intent: intentResult
+        };
       } else if (finalReplyText.includes("Millán 4494")) {
         finalReplyText = "¡Los esperamos por el local! Recordá que el chequeo visual es 100% GRATIS. 😊";
       } else {

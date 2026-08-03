@@ -26,17 +26,13 @@ const turn1_1 = await StateMachine.processMessage('gold-1', 'cuánto un antirref
 Object.assign(state1, turn1_1.patch);
 assert(turn1_1.reply.includes("$2.200") && state1.saludo_enviado === true, '   Turno 1: Precio antirreflejo + saludo');
 
-const turn1_2 = await StateMachine.processMessage('gold-1', 'es para cerca', state1);
+const turn1_2 = await StateMachine.processMessage('gold-1', 'no tengo receta', state1);
 Object.assign(state1, turn1_2.patch);
-assert(!turn1_2.reply.startsWith("¡Hola!") && state1.saludo_enviado === true, '   Turno 2: No re-saluda');
+assert(state1.funnel === 'CHEQUEO_REQUERIDO' && state1.preguntado_receta_chequeo === true, '   Turno 2: Transición a CHEQUEO_REQUERIDO');
 
-const turn1_3 = await StateMachine.processMessage('gold-1', 'no tengo receta', state1);
+const turn1_3 = await StateMachine.processMessage('gold-1', 'ya te dije que no tengo', state1);
 Object.assign(state1, turn1_3.patch);
-assert(state1.funnel === 'CHEQUEO_REQUERIDO' && state1.preguntado_receta_chequeo === true, '   Turno 3: Transición a CHEQUEO_REQUERIDO');
-
-const turn1_4 = await StateMachine.processMessage('gold-1', 'ya te dije que no tengo', state1);
-Object.assign(state1, turn1_4.patch);
-assert(turn1_4.reply.includes("disculpá la insistencia") && !turn1_4.reply.includes("¡Hola!"), '   Turno 4: No repite idéntico y empatiza');
+assert(turn1_3.reply.includes("disculpá la insistencia") && !turn1_3.reply.includes("¡Hola!"), '   Turno 3: No repite idéntico y empatiza');
 
 // --- CONVERSACIÓN 1B: CHEQUEO_REQUERIDO PERMITE PREGUNTAS CONTINUAS ---
 console.log("\n💬 CONVERSACIÓN 1B: CHEQUEO_REQUERIDO no silencia al bot y responde convenios");
@@ -62,6 +58,11 @@ assert(dev1.action === 'HANDOFF_HUMAN' && dev1.patch.funnel === 'TRASPASO_HUMANO
 
 const dev2 = await StateMachine.processMessage('gold-3b', 'tengo convenio con ANTEL');
 assert(dev2.action === 'HANDOFF_HUMAN' && dev2.patch.funnel === 'TRASPASO_HUMANO', '   Derivación Convenio ANTEL sin inventar descuento');
+
+// --- CONVERSACIÓN 3B: DERIVA POR DUDA EN MENSAJE NO CLASIFICABLE ---
+console.log("\n💬 CONVERSACIÓN 3B: Derivación [DERIVA_POR_DUDA] en Mensaje No Clasificable");
+const devDuda = await StateMachine.processMessage('gold-3c', 'es que el otro día vi un programa en la tv');
+assert(devDuda.action === 'HANDOFF_HUMAN' && devDuda.reply.includes("Dejame que un asesor te ayude con esto") && devDuda.patch.funnel === 'TRASPASO_HUMANO', '   Mensaje ambiguo deriva a humano con mensaje natural');
 
 // --- CONVERSACIÓN 4: MEMORIA TRAS REINICIO ---
 console.log("\n💬 CONVERSACIÓN 4: Memoria de Estado Tras Reinicio (GHLState)");
