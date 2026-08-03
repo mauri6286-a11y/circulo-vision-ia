@@ -386,10 +386,11 @@ async function procesarLoteDeMensajes(contactId, messages) {
   console.log(`[DEBUG] Estado actual leído desde GHL para ${contactId}:`, JSON.stringify(currentState));
 
   // 2. VERIFICACIÓN PRIMARIA Y RIGUROSA DEL TAG DE ATENCIÓN HUMANA DESDE GHL API
-  // Si el tag atencion_humana está presente (colocado a mano o por el bot), el bot NUNCA responde, independientemente de la etapa del funnel (NUEVO_LEAD, etc.)
+  // Si el tag atencion_humana está presente (colocado a mano o por el bot) O si el funnel es TRASPASO_HUMANO,
+  // el bot NUNCA responde NADA (ni texto, ni audios, ni imágenes, ni PDFs).
   const isHumanActive = await verificarTagHumano(contactId);
-  if (isHumanActive || currentState.funnel === 'TRASPASO_HUMANO') {
-    console.log(`⏸️ Mensaje ignorado por la IA porque Nico/Staff o tag atencion_humana está presente para ${contactId} (Funnel actual: ${currentState.funnel}, Tag humano: ${isHumanActive}).`);
+  if (isHumanActive || currentState.funnel === 'TRASPASO_HUMANO' || currentState.ia_pausada) {
+    console.log(`⏸️ Mensaje ignorado por la IA (Audio/Adjunto/Texto) porque Nico/Staff o tag atencion_humana está presente para ${contactId} (Funnel actual: ${currentState.funnel}, Tag humano: ${isHumanActive}).`);
     return null;
   }
 
@@ -423,17 +424,28 @@ async function procesarLoteDeMensajes(contactId, messages) {
     currentState.saludo_enviado = true;
   }
 
-  // MANEJO DE ADJUNTOS / COMPROBANTES / PDF: JAMÁS SALUDA NI USA PLANTILLA DE PITCH
+  // MANEJO DE ADJUNTOS / AUDIOS / COMPROBANTES / PDF EN CONTACTOS ACTIVOS
   if (hasAttachment || !textoCompleto) {
-    console.log(`📎 Adjunto/PDF o mensaje sin texto detectado para ${contactId}. Enviando mensaje corto de recibido y pasando a humano...`);
-    const isHours = esHorarioLaboralUruguay();
-    const confirmReply = isHours
-      ? currentCfg.mensajes?.handoff_en_horario
-      : currentCfg.mensajes?.handoff_fuera_horario;
+    console.log(`📎 Adjunto/Audio/PDF detectado para contacto activo ${contactId}. Pasando a humano...`);
+    
+    // Evitar respuestas de "recibido" duplicadas si ya se envió una confirmación recientemente en 5 min
+    const lastSent = lastSentReplies.get(contactId);
+    const now = Date.now();
+    const isRecentAck = lastSent && lastSent.text.includes("Recibido") && (now - lastSent.sentAt) < 300000;
 
-    const finalConfirm = `${currentCfg.mensajes?.adjunto_recibido || "¡Recibido!"} ${confirmReply}`;
+    if (!isRecentAck) {
+      const isHours = esHorarioLaboralUruguay();
+      const confirmReply = isHours
+        ? currentCfg.mensajes?.handoff_en_horario
+        : currentCfg.mensajes?.handoff_fuera_horario;
 
-    await sendGHLMessage(contactId, finalConfirm);
+      const finalConfirm = `${currentCfg.mensajes?.adjunto_recibido || "¡Recibido!"} ${confirmReply}`;
+
+      await sendGHLMessage(contactId, finalConfirm);
+    } else {
+      console.log(`[DEBUG] Confirmación de adjunto reciente omitida por deduplicación para ${contactId}.`);
+    }
+
     await addTagToContact(contactId, "atencion_humana");
     await store.setState(contactId, {
       funnel: 'TRASPASO_HUMANO',
