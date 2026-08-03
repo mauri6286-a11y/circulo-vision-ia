@@ -35,7 +35,7 @@ Sos el clasificador de intenciones en tiempo real para el agente de IA de ${cfg.
 Tu tarea es analizar el mensaje del cliente y el historial de la conversación, y devolver UNICAMENTE un JSON válido con esta estructura exacta:
 
 {
-  "intenciones": ["promo" | "consulta_precio" | "consulta_convenio" | "sin_receta" | "tengo_receta" | "lentes_de_sol" | "horarios" | "envios" | "cuotas" | "tiempo_entrega" | "test_gratis" | "saludo" | "agradecimiento" | "despedida" | "consulta_derivar_humano" | "otra"],
+  "intenciones": ["promo" | "consulta_precio" | "consulta_convenio" | "sin_receta" | "tengo_receta" | "lentes_de_sol" | "horarios" | "envios" | "cuotas" | "tiempo_entrega" | "test_gratis" | "aviso_visita" | "saludo" | "agradecimiento" | "despedida" | "consulta_derivar_humano" | "otra"],
   "entidades": {
     "producto": ${JSON.stringify(productosValidos)} | null,
     "convenio": ${JSON.stringify(conveniosActivos.concat(conveniosAConsultar))} | null,
@@ -48,20 +48,21 @@ Tu tarea es analizar el mensaje del cliente y el historial de la conversación, 
 
 REGLAS DE CLASIFICACIÓN RIGUROSAS:
 1. SOPORTAR MÚLTIPLES INTENCIONES: Si el cliente hace varias preguntas en un mismo mensaje (ej: precio + cuotas + dirección), incluir TODAS las intenciones detectadas en el array "intenciones".
-2. "sin_receta": Si indica que no tiene receta ("no tengo receta", "la perdí", "la dejé en casa", "no la traje"), incluir "sin_receta", tiene_receta: false.
-3. "tengo_receta": Si indica que si tiene receta ("tengo receta", "con receta"), incluir "tengo_receta", tiene_receta: true.
-4. "consulta_convenio":
+2. "aviso_visita": Si el cliente avisa que está yendo/en camino al local, que pasa con alguien, o que lleva a un familiar (ej: "estamos yendo para ahí", "voy para el local", "mi esposa se va a hacer lentes", "voy con mi señora", "ya me hice lentes ahí y llevo a alguien"), incluir "aviso_visita".
+3. "sin_receta": Si indica que no tiene receta ("no tengo receta", "la perdí", "la dejé en casa", "no la traje"), incluir "sin_receta", tiene_receta: false.
+4. "tengo_receta": Si indica que si tiene receta ("tengo receta", "con receta"), incluir "tengo_receta", tiene_receta: true.
+5. "consulta_convenio":
    - Si menciona un convenio activo (${conveniosActivos.join(', ')}), poner el slug en entidades.convenio y requiere_humano: false.
    - Si menciona UN CONVENIO NO LISTADO O PENDIENTE (ej: "antel", "ancap", "sayago", "fitlab"), poner el slug en entidades.convenio y exige requiere_humano: true, razon_humano: "convenio_a_consultar".
-5. "requiere_humano: true": 
+6. "requiere_humano: true": 
    - Fotocromáticos / Transitions -> razon_humano: "fotocromaticos".
    - Multifocales / Progresivos / Varilux -> razon_humano: "varilux".
    - Lente completo armado -> razon_humano: "lente_completo".
    - Datos bancarios / Transferencias / Dónde depositar / Pago por banco -> razon_humano: "datos_bancarios".
    - Reclamos, adaptaciones, turnos, preguntas fuera de tema.
-6. "consulta_precio": Si pregunta precio de un producto puntual (antirreflejo, blueblocker, cristal blanco, bifocal, armazón), incluir "consulta_precio" y poner el slug exacto en entidades.producto.
-7. "otra" / "saludo": Si el mensaje es solo emojis, un saludo casual suelto ("hola cómo va", "buenas"), o un comentario ambiguo no relacionado con una consulta directa de óptica (ej: "de nuevo el día del padre 🥰🥳💪?"), clasificar como "otra" o "saludo". NO inventar consulta comercial donde no la hay.
-8. NO inventar datos.
+7. "consulta_precio": Si pregunta precio de un producto puntual (antirreflejo, blueblocker, cristal blanco, bifocal, armazón), incluir "consulta_precio" y poner el slug exacto en entidades.producto.
+8. "otra" / "saludo": ÚNICAMENTE si el mensaje es solo emojis, o un saludo totalmente vacio sin ninguna intención comercial o de visita. NO marcar como "otra" si el cliente dice que viene al local o trae a alguien.
+9. NO inventar datos.
 `;
 
       const payload = {
@@ -125,24 +126,29 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
   let requiere_humano = false;
   let razon_humano = null;
 
-  // 1. Fuera de tema explícito
+  // 1. Aviso de visita / En camino / Acompañante / Cliente recurrente
+  if (lowerMsg.includes("yendo") || lowerMsg.includes("voy para") || lowerMsg.includes("estamos yendo") || lowerMsg.includes("pasando por") || lowerMsg.includes("llegando") || lowerMsg.includes("voy con mi") || lowerMsg.includes("mi esposa") || lowerMsg.includes("mi senora") || lowerMsg.includes("mi marido") || lowerMsg.includes("llevo a") || lowerMsg.includes("traigo a") || lowerMsg.includes("ya me hice") || lowerMsg.includes("ya soy cliente")) {
+    intencionesSet.add("aviso_visita");
+  }
+
+  // 2. Fuera de tema explícito
   if (lowerMsg.includes("wifi") || lowerMsg.includes("mascota") || lowerMsg.includes("perro") || lowerMsg.includes("estacionamiento")) {
     intencionesSet.add("consulta_derivar_humano");
     requiere_humano = true;
     razon_humano = "otro";
   }
 
-  // 2. Promo
+  // 3. Promo
   if (lowerMsg.includes("promo") || lowerMsg.includes("source url") || lowerMsg.includes("headline") || lowerMsg.includes("fb.me") || lowerMsg.includes("instagram")) {
     intencionesSet.add("promo");
   }
 
-  // 3. Lentes de sol
+  // 4. Lentes de sol
   if (lowerMsg.includes("lentes de sol") || lowerMsg.includes("lente de sol") || lowerMsg.includes("gafas de sol") || (lowerMsg.includes("sol") && lowerMsg.includes("polariz"))) {
     intencionesSet.add("lentes_de_sol");
   }
 
-  // 4. Receta
+  // 5. Receta
   if (lowerMsg.includes("no tengo") || lowerMsg.includes("perdi") || lowerMsg.includes("deje") || lowerMsg.includes("traje") || lowerMsg.includes("sin receta")) {
     intencionesSet.add("sin_receta");
     entidades.tiene_receta = false;
@@ -151,7 +157,7 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
     entidades.tiene_receta = true;
   }
 
-  // 5. Convenios
+  // 6. Convenios
   if (lowerMsg.includes("convenio") || lowerMsg.includes("descuento") || lowerMsg.includes("caja bancaria") || lowerMsg.includes("cjpb") || lowerMsg.includes("quimica") || lowerMsg.includes("ferrocarril") || lowerMsg.includes("sayago") || lowerMsg.includes("fitlab") || lowerMsg.includes("racing") || lowerMsg.includes("mutualista") || lowerMsg.includes("catolico") || lowerMsg.includes("evangelico") || lowerMsg.includes("bps") || lowerMsg.includes("antel") || lowerMsg.includes("ancap")) {
     intencionesSet.add("consulta_convenio");
     if (lowerMsg.includes("antel") || lowerMsg.includes("sayago") || lowerMsg.includes("fitlab") || lowerMsg.includes("racing") || lowerMsg.includes("mutualista")) {
@@ -168,7 +174,7 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
     }
   }
 
-  // 6. Derivaciones requeridas (Multifocales/Progresivos, Datos Bancarios/Transferencias, Fotocromáticos, etc.)
+  // 7. Derivaciones requeridas (Multifocales/Progresivos, Datos Bancarios/Transferencias, Fotocromáticos, etc.)
   if (lowerMsg.includes("fotocrom") || lowerMsg.includes("transition") || lowerMsg.includes("varilux") || lowerMsg.includes("multifocal") || lowerMsg.includes("progresiv") || lowerMsg.includes("completo") || lowerMsg.includes("armado") || lowerMsg.includes("caen") || lowerMsg.includes("ajuste") || lowerMsg.includes("turno") || lowerMsg.includes("transferenci") || lowerMsg.includes("cuenta bancaria") || lowerMsg.includes("deposito") || lowerMsg.includes("datos para transferir") || lowerMsg.includes("transferir") || lowerMsg.includes("donde deposito")) {
     intencionesSet.add("consulta_derivar_humano");
     requiere_humano = true;
@@ -180,7 +186,7 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
     else if (lowerMsg.includes("transferenci") || lowerMsg.includes("cuenta bancaria") || lowerMsg.includes("deposito") || lowerMsg.includes("transferir") || lowerMsg.includes("donde deposito")) razon_humano = "datos_bancarios";
   }
 
-  // 7. Precios / Productos
+  // 8. Precios / Productos
   if (lowerMsg.includes("antirreflejo") || lowerMsg.includes("antireflejo") || lowerMsg.includes("blueblocker") || lowerMsg.includes("blanco") || lowerMsg.includes("armazon") || lowerMsg.includes("marcos") || lowerMsg.includes("bifocal") || lowerMsg.includes("precio") || lowerMsg.includes("cuanto sale") || lowerMsg.includes("cuanto me sale") || lowerMsg.includes("incuyen") || lowerMsg.includes("incluyen")) {
     intencionesSet.add("consulta_precio");
     if (lowerMsg.includes("bifocal")) entidades.producto = "bifocal_sin_ar";
@@ -190,27 +196,27 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
     else if (lowerMsg.includes("antirreflejo") || lowerMsg.includes("antireflejo")) entidades.producto = "antirreflejo";
   }
 
-  // 8. Cuotas
+  // 9. Cuotas
   if (lowerMsg.includes("cuota") || lowerMsg.includes("cuotas") || lowerMsg.includes("tarjeta") || lowerMsg.includes("credito") || lowerMsg.includes("financiar")) {
     intencionesSet.add("cuotas");
   }
 
-  // 9. Envíos
+  // 10. Envíos
   if (lowerMsg.includes("envio") || lowerMsg.includes("envios") || lowerMsg.includes("interior") || lowerMsg.includes("domicilio")) {
     intencionesSet.add("envios");
   }
 
-  // 10. Horarios / Ubicación
+  // 11. Horarios / Ubicación
   if (lowerMsg.includes("horario") || lowerMsg.includes("abren") || lowerMsg.includes("direccion") || lowerMsg.includes("donde") || lowerMsg.includes("estan") || lowerMsg.includes("quedan")) {
     intencionesSet.add("horarios");
   }
 
-  // 11. Tiempos de entrega
+  // 12. Tiempos de entrega
   if (lowerMsg.includes("demora") || lowerMsg.includes("demoran") || lowerMsg.includes("tarda") || lowerMsg.includes("tardan") || lowerMsg.includes("entrega")) {
     intencionesSet.add("tiempo_entrega");
   }
 
-  // 12. Garantías
+  // 13. Garantías
   if (lowerMsg.includes("garantia")) {
     if (lowerMsg.includes("especifica") || lowerMsg.includes("este modelo")) {
       intencionesSet.add("consulta_derivar_humano");
@@ -221,22 +227,22 @@ REGLAS DE CLASIFICACIÓN RIGUROSAS:
     }
   }
 
-  // 13. Test gratis / Chequeo
+  // 14. Test gratis / Chequeo
   if (lowerMsg.includes("examen") || lowerMsg.includes("gratis") || lowerMsg.includes("test") || lowerMsg.includes("chequeo")) {
     intencionesSet.add("test_gratis");
   }
 
-  // 14. Agradecimientos
+  // 15. Agradecimientos
   if (lowerMsg.includes("gracias") || lowerMsg.includes("impecable") || lowerMsg.includes("buenisimo")) {
     intencionesSet.add("agradecimiento");
   }
 
-  // 15. Despedidas
+  // 16. Despedidas
   if (lowerMsg.includes("saludos") || lowerMsg.includes("que pases bien") || lowerMsg.includes("igualmente")) {
     intencionesSet.add("despedida");
   }
 
-  // 16. Saludo / Ambiguo
+  // 17. Saludo / Ambiguo
   if (intencionesSet.size === 0 && (lowerMsg.includes("hola") || lowerMsg.includes("necesito") || lowerMsg.includes("lentes") || lowerMsg.includes("dia del padre"))) {
     intencionesSet.add("saludo");
   }

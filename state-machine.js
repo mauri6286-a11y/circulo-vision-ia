@@ -107,9 +107,19 @@ export const StateMachine = {
     }
 
     const replySnippets = [];
+    const lowerUserMessage = userMessage.toLowerCase();
 
     for (const intent of intenciones) {
-      if (intent === 'sin_receta' || intentResult.entidades?.tiene_receta === false) {
+      if (intent === 'aviso_visita') {
+        patch.funnel = 'CHEQUEO_REQUERIDO';
+        if (lowerUserMessage.includes("esposa") || lowerUserMessage.includes("senora") || lowerUserMessage.includes("marido") || lowerUserMessage.includes("hijo") || lowerUserMessage.includes("llevo a") || lowerUserMessage.includes("traigo a") || lowerUserMessage.includes("alguien")) {
+          replySnippets.push("¡Buenísimo! Los esperamos en Av. Millán 4494 (atendemos de 9 a 19 hs). A tu acompañante le hacemos el chequeo visual 100% GRATIS en el momento. 😊");
+        } else if (lowerUserMessage.includes("ya me hice") || lowerUserMessage.includes("ya soy cliente")) {
+          replySnippets.push("¡Qué alegría tenerte de vuelta! Te esperamos por Av. Millán 4494 (atendemos de 9 a 19 hs). 😊");
+        } else {
+          replySnippets.push("¡Genial! Los esperamos por Av. Millán 4494 (atendemos de 9 a 19 hs). 😊");
+        }
+      } else if (intent === 'sin_receta' || intentResult.entidades?.tiene_receta === false) {
         patch.preguntado_receta_chequeo = true;
         patch.funnel = 'CHEQUEO_REQUERIDO';
         if (yaPreguntoReceta) {
@@ -227,7 +237,21 @@ export const StateMachine = {
     }
 
     const combinedBody = replySnippets.join(" ");
-    const finalReplyText = buildReply(combinedBody);
+    let finalReplyText = buildReply(combinedBody);
+
+    // RIGUROSA DEDUPLICACIÓN DE RESPUESTAS CONSECUTIVAS IDÉNTICAS
+    if (currentState.ultima_respuesta && currentState.ultima_respuesta.trim().toLowerCase() === finalReplyText.trim().toLowerCase()) {
+      console.log(`[DEDUPLICACION] Respuesta idéntica detectada para ${contactId}. Generando variante contextual.`);
+      if (finalReplyText.includes("¿En qué te puedo ayudar?")) {
+        finalReplyText = "¡Perfecto! Quedamos a las órdenes por cualquier otra duda. 😊";
+      } else if (finalReplyText.includes("Millán 4494")) {
+        finalReplyText = "¡Los esperamos por el local! Recordá que el chequeo visual es 100% GRATIS. 😊";
+      } else {
+        finalReplyText = `${finalReplyText} Quedamos a la espera en el local. 👍`;
+      }
+    }
+
+    patch.ultima_respuesta = finalReplyText;
 
     const guardrailCheck = validarMensajeSaliente(finalReplyText, config);
 
